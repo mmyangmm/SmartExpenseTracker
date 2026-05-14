@@ -56,7 +56,14 @@ struct TravelModeSummaryView: View {
 
                     // ── Hero 總覽卡 ────────────────────────────
                     VStack(spacing: 14) {
-                        Text("\(tc?.flag ?? "✈️")  旅程結算")
+                        HStack(spacing: 8) {
+                        if let tc = tc {
+                            CurrencyFlagView(tc: tc, size: 28)
+                        } else {
+                            Text("✈️").font(.title3)
+                        }
+                        Text("旅程結算")
+                    }
                             .font(.system(.title2, design: .rounded))
                             .fontWeight(.bold)
                             .foregroundColor(AppTheme.textPrimary)
@@ -227,7 +234,7 @@ struct TravelModeSummaryView: View {
                 .padding(.top)
             }
             .background(AppTheme.bg)
-            .navigationTitle("旅行結算 \(tc?.flag ?? "✈️")")
+            .navigationTitle("旅行結算")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {

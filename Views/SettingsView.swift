@@ -1,5 +1,47 @@
 import SwiftUI
 
+// MARK: - Trip Record（旅行結算自動儲存）
+
+struct TripRecord: Codable, Identifiable {
+    let id:           String   // = travelSessionId
+    let currencyCode: String
+    let startDate:    Date
+    let endDate:      Date
+
+    private static let key = "completedTripRecords_v1"
+
+    static func loadAll() -> [TripRecord] {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let records = try? JSONDecoder().decode([TripRecord].self, from: data)
+        else { return [] }
+        return records.sorted { $0.endDate > $1.endDate }
+    }
+
+    static func append(_ record: TripRecord) {
+        var all = loadAll()
+        // 避免重複
+        all.removeAll { $0.id == record.id }
+        all.insert(record, at: 0)
+        // 最多保留 50 筆
+        if all.count > 50 { all = Array(all.prefix(50)) }
+        if let data = try? JSONEncoder().encode(all) {
+            UserDefaults.standard.set(data, forKey: key)
+        }
+    }
+
+    var formattedDateRange: String {
+        let f = DateFormatter()
+        f.locale     = Locale(identifier: "zh_TW")
+        f.dateFormat = "yyyy/M/d"
+        if Calendar.current.isDate(startDate, inSameDayAs: endDate) {
+            return f.string(from: startDate)
+        }
+        return "\(f.string(from: startDate)) – \(f.string(from: endDate))"
+    }
+}
+
+// MARK: - SettingsView
+
 struct SettingsView: View {
     @EnvironmentObject var viewModel:           ExpenseViewModel
     @EnvironmentObject var notificationService: NotificationService
@@ -129,11 +171,20 @@ struct SettingsView: View {
                             travelModeSessionId = UUID().uuidString
                             Task { await exchangeRateService.fetchRate(for: travelModeCurrency) }
                         } else {
-                            // 關閉：先記錄 session 資訊，再顯示結算
-                            summarySessionId    = travelModeSessionId
-                            summaryCurrencyCode = travelModeCurrency
-                            if !summarySessionId.isEmpty {
-                                showTravelSummary = true
+                            // 關閉：自動儲存旅行結算紀錄
+                            let sid = travelModeSessionId
+                            let cur = travelModeCurrency
+                            if !sid.isEmpty {
+                                let record = TripRecord(
+                                    id:           sid,
+                                    currencyCode: cur,
+                                    startDate:    Date(timeIntervalSince1970: travelModeStartTs),
+                                    endDate:      Date()
+                                )
+                                TripRecord.append(record)
+                                summarySessionId    = sid
+                                summaryCurrencyCode = cur
+                                showTravelSummary   = true
                             }
                         }
                     }
@@ -204,6 +255,17 @@ struct SettingsView: View {
                                     .font(.callout)
                                     .foregroundColor(AppTheme.textSecondary)
                             }
+                        }
+                    }
+
+                    // 過去旅行記錄
+                    let pastTrips = TripRecord.loadAll()
+                    if !pastTrips.isEmpty {
+                        NavigationLink {
+                            PastTripsView()
+                        } label: {
+                            Label("過去旅行記錄（\(pastTrips.count) 筆）",
+                                  systemImage: "clock.arrow.circlepath")
                         }
                     }
                 } header: {
@@ -487,7 +549,7 @@ struct CurrencyPickerSheet: View {
                     dismiss()
                 } label: {
                     HStack(spacing: 14) {
-                        Text(tc.flag).font(.title2)
+                        CurrencyFlagView(tc: tc, size: 36)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(tc.name)
                                 .font(.system(.body, design: .rounded))
@@ -513,6 +575,81 @@ struct CurrencyPickerSheet: View {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("取消") { dismiss() }
                         .foregroundColor(AppTheme.primary)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Past Trips View
+
+struct PastTripsView: View {
+    @EnvironmentObject var viewModel: ExpenseViewModel
+    @State private var records: [TripRecord] = []
+    @State private var selectedRecord: TripRecord? = nil
+
+    var body: some View {
+        List {
+            ForEach(records) { record in
+                let tc = TravelCurrency.find(record.currencyCode)
+                // 計算這趟旅程的支出筆數與金額
+                let expenses = viewModel.expenses.filter {
+                    $0.travelSessionId == record.id && !$0.isIncome
+                }
+                let totalTWD = expenses.reduce(0) { $0 + $1.amount }
+
+                Button {
+                    selectedRecord = record
+                } label: {
+                    HStack(spacing: 14) {
+                        if let tc = tc {
+                            CurrencyFlagView(tc: tc, size: 40)
+                        }
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 6) {
+                                Text(tc?.name ?? record.currencyCode)
+                                    .font(.system(.subheadline, design: .rounded))
+                                    .fontWeight(.bold)
+                                    .foregroundColor(AppTheme.textPrimary)
+                                Text("旅行")
+                                    .font(.subheadline)
+                                    .foregroundColor(AppTheme.textSecondary)
+                            }
+                            Text(record.formattedDateRange)
+                                .font(.caption)
+                                .foregroundColor(AppTheme.textSecondary)
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 3) {
+                            Text("NT$\(Int(totalTWD))")
+                                .font(.system(.subheadline, design: .rounded))
+                                .fontWeight(.bold)
+                                .foregroundColor(AppTheme.textPrimary)
+                            Text("\(expenses.count) 筆")
+                                .font(.caption2)
+                                .foregroundColor(AppTheme.textSecondary)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .navigationTitle("過去旅行記錄")
+        .navigationBarTitleDisplayMode(.large)
+        .onAppear { records = TripRecord.loadAll() }
+        .sheet(item: $selectedRecord) { record in
+            TravelModeSummaryView(sessionId: record.id,
+                                  currencyCode: record.currencyCode)
+        }
+        .overlay {
+            if records.isEmpty {
+                VStack(spacing: 12) {
+                    Text("✈️").font(.system(size: 52))
+                    Text("尚無旅行記錄")
+                        .font(.system(.subheadline, design: .rounded))
+                        .fontWeight(.semibold)
+                        .foregroundColor(AppTheme.textSecondary)
                 }
             }
         }

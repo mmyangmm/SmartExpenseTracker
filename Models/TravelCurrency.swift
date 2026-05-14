@@ -8,6 +8,9 @@ struct TravelCurrency: Identifiable, Hashable {
 
     var id: String { code }
 
+    /// TWD 使用自訂 icon（無 emoji），其他用 flag 字串
+    var hasCustomIcon: Bool { code == "TWD" }
+
     /// 格式化金額，日圓/韓元/越南盾/印尼盾不顯示小數
     func format(_ amount: Double) -> String {
         let noDecimal = ["JPY","KRW","VND","IDR","TWD"]
@@ -26,6 +29,7 @@ struct TravelCurrency: Identifiable, Hashable {
         .init(code: "USD", name: "美元",          flag: "🇺🇸", symbol: "$"),
         .init(code: "EUR", name: "歐元",          flag: "🇪🇺", symbol: "€"),
         .init(code: "GBP", name: "英鎊",          flag: "🇬🇧", symbol: "£"),
+        .init(code: "CHF", name: "瑞士法郎",      flag: "🇨🇭", symbol: "CHF"),
         .init(code: "HKD", name: "港幣",          flag: "🇭🇰", symbol: "HK$"),
         .init(code: "MOP", name: "澳門幣",        flag: "🇲🇴", symbol: "MOP$"),
         .init(code: "CNY", name: "人民幣",        flag: "🇨🇳", symbol: "¥"),

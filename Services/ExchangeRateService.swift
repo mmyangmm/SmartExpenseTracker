@@ -19,9 +19,10 @@ class ExchangeRateService: ObservableObject {
     static let fallbackRates: [String: Double] = [
         "TWD":  1.0,
         "USD": 32.5,  "JPY":  0.215,  "EUR": 35.5,   "GBP": 41.5,
-        "HKD":  4.15, "SGD": 24.5,    "CNY":  4.5,   "KRW":  0.024,
-        "THB":  0.91, "AUD": 21.5,    "CAD": 23.5,   "MYR":  7.3,
-        "IDR":  0.0021,"PHP": 0.56,   "VND":  0.0013, "MOP":  4.01,
+        "CHF": 37.2,  "HKD":  4.15,   "SGD": 24.5,   "CNY":  4.5,
+        "KRW": 0.024, "THB":  0.91,   "AUD": 21.5,   "CAD": 23.5,
+        "MYR":  7.3,  "IDR":  0.0021, "PHP": 0.56,   "VND": 0.0013,
+        "MOP":  4.01,
     ]
 
     // ── 擷取出國模式匯率（→ TWD）─────────────────────────────

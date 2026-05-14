@@ -1,19 +1,53 @@
 import SwiftUI
 
+// MARK: - TWD Custom Icon & Shared Flag View
+
+/// 顯示幣別圖示：TWD 使用自製藍色圓形徽章，其他顯示 emoji 國旗
+struct CurrencyFlagView: View {
+    let tc:   TravelCurrency
+    var size: CGFloat = 32
+
+    var body: some View {
+        if tc.code == "TWD" {
+            // 自訂台幣圖示：藍底白字「元」
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(hex: "1565C0"), Color(hex: "1E88E5")],
+                            startPoint: .topLeading,
+                            endPoint:   .bottomTrailing
+                        )
+                    )
+                    .frame(width: size, height: size)
+                // 外圈細環
+                Circle()
+                    .stroke(Color.white.opacity(0.35), lineWidth: size * 0.05)
+                    .frame(width: size * 0.82, height: size * 0.82)
+                Text("元")
+                    .font(.system(size: size * 0.44, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+            }
+            .frame(width: size, height: size)
+        } else {
+            Text(tc.flag)
+                .font(.system(size: size * 0.68))
+                .frame(width: size, height: size)
+        }
+    }
+}
+
 // MARK: - Currency Converter View
 
 struct CurrencyConverterView: View {
     @EnvironmentObject var exchangeRateService: ExchangeRateService
 
-    /// 顯示中的幣別（逗號分隔），預設 TWD/USD/JPY/EUR/CNY/HKD
     @AppStorage("converterCurrencies")   private var savedCurrencies: String = "TWD,USD,JPY,EUR,CNY,HKD"
-    /// 目前作為基準的幣別
     @AppStorage("converterBaseCurrency") private var baseCurrency:    String = "TWD"
 
-    @State private var inputText:   String = "1"
-    @State private var showManage:  Bool   = false
+    @State private var inputText:  String = "1"
+    @State private var showManage: Bool   = false
 
-    // ── helpers ──────────────────────────────────────────────
     private var selectedCodes: [String] {
         savedCurrencies.split(separator: ",").map(String.init).filter { !$0.isEmpty }
     }
@@ -32,16 +66,11 @@ struct CurrencyConverterView: View {
         return tc.format(amount)
     }
 
-    // ── view ─────────────────────────────────────────────────
     var body: some View {
         VStack(spacing: 0) {
-
-            // 更新時間 / loading 提示
             updateBar
-
             Divider().opacity(0.4)
 
-            // 幣別清單
             ScrollView {
                 VStack(spacing: 8) {
                     ForEach(selectedCodes, id: \.self) { code in
@@ -62,7 +91,6 @@ struct CurrencyConverterView: View {
 
             Divider().opacity(0.4)
 
-            // 數字鍵盤
             ConverterNumpad(text: $inputText)
                 .padding(.horizontal, 16)
                 .padding(.top, 10)
@@ -74,20 +102,13 @@ struct CurrencyConverterView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 18) {
-                    // 重新整理
                     Button {
                         Task { await exchangeRateService.fetchAllRates(base: baseCurrency) }
                     } label: {
-                        Image(systemName: exchangeRateService.isLoading
-                              ? "arrow.clockwise" : "arrow.clockwise")
-                            .rotationEffect(exchangeRateService.isLoading ? .degrees(360) : .zero)
-                            .animation(exchangeRateService.isLoading
-                                       ? .linear(duration: 1).repeatForever(autoreverses: false)
-                                       : .default, value: exchangeRateService.isLoading)
+                        Image(systemName: "arrow.clockwise")
                     }
-                    // 管理幣別
                     Button { showManage = true } label: {
-                        Image(systemName: "plus")
+                        Image(systemName: "slider.horizontal.3")
                     }
                 }
                 .foregroundColor(AppTheme.primary)
@@ -98,7 +119,6 @@ struct CurrencyConverterView: View {
                                   baseCurrency: baseCurrency)
         }
         .task {
-            // 初次進入或 base 已變更，才重新抓
             if exchangeRateService.allRates.isEmpty
                 || exchangeRateService.converterBase != baseCurrency {
                 await exchangeRateService.fetchAllRates(base: baseCurrency)
@@ -106,7 +126,6 @@ struct CurrencyConverterView: View {
         }
     }
 
-    // ── 頂端更新列 ────────────────────────────────────────────
     @ViewBuilder
     private var updateBar: some View {
         HStack(spacing: 6) {
@@ -117,17 +136,16 @@ struct CurrencyConverterView: View {
                     .foregroundColor(AppTheme.textSecondary)
             } else if let ts = exchangeRateService.lastUpdated {
                 Image(systemName: "checkmark.circle.fill")
-                    .font(.caption2)
-                    .foregroundColor(.green)
+                    .font(.caption2).foregroundColor(.green)
                 Text("更新於 \(RelativeDateTimeFormatter().localizedString(for: ts, relativeTo: Date()))")
                     .font(.caption2)
                     .foregroundColor(AppTheme.textSecondary)
                 if let err = exchangeRateService.errorMessage {
                     Text("（\(err)）")
-                        .font(.caption2)
-                        .foregroundColor(.orange)
+                        .font(.caption2).foregroundColor(.orange)
                 }
             }
+            Spacer()
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 7)
@@ -135,18 +153,15 @@ struct CurrencyConverterView: View {
         .background(AppTheme.surface)
     }
 
-    // ── 切換基準幣別 ──────────────────────────────────────────
     private func switchBase(to code: String) {
         guard code != baseCurrency else { return }
         let converted = convertedAmount(for: code)
         baseCurrency  = code
-        // 格式化成輸入字串
         if converted <= 0 {
             inputText = "1"
         } else if converted.truncatingRemainder(dividingBy: 1) == 0 {
             inputText = "\(Int(converted))"
         } else {
-            // 最多保留 4 位小數，去除尾零
             var s = String(format: "%.4f", converted)
             while s.hasSuffix("0") { s.removeLast() }
             if s.hasSuffix(".") { s.removeLast() }
@@ -156,7 +171,7 @@ struct CurrencyConverterView: View {
     }
 }
 
-// MARK: - Currency Row
+// MARK: - Converter Currency Row
 
 struct ConverterCurrencyRow: View {
     let code:         String
@@ -167,15 +182,18 @@ struct ConverterCurrencyRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            // 國旗圓形
+            // 幣別圖示
             ZStack {
                 Circle()
                     .fill(isBase ? AppTheme.primaryLight : AppTheme.bg)
                     .frame(width: 46, height: 46)
-                Text(tc?.flag ?? "🏳️").font(.title3)
+                if let tc = tc {
+                    CurrencyFlagView(tc: tc, size: 30)
+                } else {
+                    Text(code).font(.caption2)
+                }
             }
 
-            // 名稱 + 代碼
             VStack(alignment: .leading, spacing: 2) {
                 Text(tc?.name ?? code)
                     .font(.system(.subheadline, design: .rounded))
@@ -188,7 +206,6 @@ struct ConverterCurrencyRow: View {
 
             Spacer()
 
-            // 金額
             Text(displayValue)
                 .font(.system(size: 24, weight: .bold, design: .rounded))
                 .foregroundColor(isBase ? AppTheme.primary : AppTheme.textPrimary)
@@ -199,11 +216,8 @@ struct ConverterCurrencyRow: View {
         .padding(.vertical, 12)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(isBase
-                      ? AppTheme.primaryLight.opacity(0.55)
-                      : AppTheme.surface)
-                .shadow(color: Color.black.opacity(isBase ? 0.07 : 0.03),
-                        radius: 4, y: 2)
+                .fill(isBase ? AppTheme.primaryLight.opacity(0.55) : AppTheme.surface)
+                .shadow(color: Color.black.opacity(isBase ? 0.07 : 0.03), radius: 4, y: 2)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -218,10 +232,10 @@ struct ConverterNumpad: View {
     @Binding var text: String
 
     private let rows: [[String]] = [
-        ["1", "2", "3"],
-        ["4", "5", "6"],
-        ["7", "8", "9"],
-        [".", "0", "⌫"],
+        ["1","2","3"],
+        ["4","5","6"],
+        ["7","8","9"],
+        [".","0","⌫"],
     ]
 
     var body: some View {
@@ -238,8 +252,7 @@ struct ConverterNumpad: View {
                                         .fill(key == "⌫"
                                               ? Color(hex: "FF3B30").opacity(0.1)
                                               : AppTheme.surface)
-                                        .shadow(color: Color.black.opacity(0.04),
-                                                radius: 3, y: 1)
+                                        .shadow(color: Color.black.opacity(0.04), radius: 3, y: 1)
                                 )
                                 .foregroundColor(
                                     key == "⌫" ? Color(hex: "FF3B30") : AppTheme.textPrimary
@@ -257,17 +270,12 @@ struct ConverterNumpad: View {
         case "⌫":
             guard !text.isEmpty else { return }
             text.removeLast()
-            if text.isEmpty { text = "" }
-
         case ".":
             guard !text.contains(".") else { return }
             text = text.isEmpty ? "0." : text + "."
-
-        default:  // 數字
-            if text == "0" {
-                text = key
-            } else {
-                // 小數點後最多 4 位；整體最多 12 字元
+        default:
+            if text == "0" { text = key }
+            else {
                 let parts = text.split(separator: ".", maxSplits: 1)
                 if parts.count == 2, parts[1].count >= 4 { return }
                 if text.count < 12 { text += key }
@@ -276,62 +284,54 @@ struct ConverterNumpad: View {
     }
 }
 
-// MARK: - Manage Currencies Sheet
+// MARK: - Manage Currencies Sheet（支援排序）
 
 struct ManageCurrenciesSheet: View {
     @Binding var savedCurrencies: String
     let baseCurrency: String
     @Environment(\.dismiss) var dismiss
 
-    private var selectedCodes: [String] {
-        savedCurrencies.split(separator: ",").map(String.init).filter { !$0.isEmpty }
+    // 目前選中的有序清單
+    @State private var selectedOrder: [String] = []
+
+    private var unselectedCurrencies: [TravelCurrency] {
+        TravelCurrency.all.filter { !selectedOrder.contains($0.code) }
     }
 
     var body: some View {
         NavigationStack {
-            List(TravelCurrency.all) { tc in
-                let isSelected = selectedCodes.contains(tc.code)
-                let isBase     = tc.code == baseCurrency
-
-                Button { toggle(tc.code) } label: {
-                    HStack(spacing: 14) {
-                        Text(tc.flag).font(.title2)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 6) {
-                                Text(tc.name)
-                                    .font(.system(.body, design: .rounded))
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(AppTheme.textPrimary)
-                                if isBase {
-                                    Text("基準")
-                                        .font(.caption2)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(AppTheme.primary)
-                                        .clipShape(Capsule())
-                                }
-                            }
-                            Text(tc.code)
-                                .font(.caption)
-                                .foregroundColor(AppTheme.textSecondary)
+            List {
+                // ── 已選擇（可拖動排序）──────────────────────────
+                Section {
+                    ForEach(selectedOrder, id: \.self) { code in
+                        if let tc = TravelCurrency.find(code) {
+                            currencyRowSelected(tc: tc)
                         }
-
-                        Spacer()
-
-                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                            .foregroundColor(isSelected ? AppTheme.primary
-                                             : AppTheme.textSecondary.opacity(0.35))
-                            .font(.title3)
                     }
-                    .contentShape(Rectangle())
+                    .onMove { from, to in
+                        selectedOrder.move(fromOffsets: from, toOffset: to)
+                        persist()
+                    }
+                } header: {
+                    Text("顯示中（拖動 ≡ 調整順序）")
+                } footer: {
+                    Text("至少保留 2 個幣別")
                 }
-                .buttonStyle(.plain)
-                .disabled(isBase)   // 基準幣別不可移除
+
+                // ── 更多幣別 ──────────────────────────────────────
+                if !unselectedCurrencies.isEmpty {
+                    Section("新增幣別") {
+                        ForEach(unselectedCurrencies) { tc in
+                            Button { addCurrency(tc.code) } label: {
+                                currencyRowUnselected(tc: tc)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
             }
-            .navigationTitle("管理顯示幣別")
+            .environment(\.editMode, .constant(.active))
+            .navigationTitle("管理幣別")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -341,16 +341,87 @@ struct ManageCurrenciesSheet: View {
                 }
             }
         }
+        .onAppear {
+            selectedOrder = savedCurrencies
+                .split(separator: ",")
+                .map(String.init)
+                .filter { !$0.isEmpty }
+        }
     }
 
-    private func toggle(_ code: String) {
-        var codes = selectedCodes
-        if codes.contains(code) {
-            guard codes.count > 2 else { return }   // 至少保留 2 個
-            codes.removeAll { $0 == code }
-        } else {
-            codes.append(code)
+    // ── 已選列 ─────────────────────────────────────────────────
+    @ViewBuilder
+    private func currencyRowSelected(tc: TravelCurrency) -> some View {
+        HStack(spacing: 14) {
+            CurrencyFlagView(tc: tc, size: 36)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(tc.name)
+                        .font(.system(.body, design: .rounded))
+                        .fontWeight(.semibold)
+                        .foregroundColor(AppTheme.textPrimary)
+                    if tc.code == baseCurrency {
+                        Text("基準")
+                            .font(.caption2).fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(AppTheme.primary).clipShape(Capsule())
+                    }
+                }
+                Text(tc.code)
+                    .font(.caption)
+                    .foregroundColor(AppTheme.textSecondary)
+            }
+            Spacer()
         }
-        savedCurrencies = codes.joined(separator: ",")
+        .contentShape(Rectangle())
+        // 左滑移除（基準幣別不可刪）
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if tc.code != baseCurrency {
+                Button(role: .destructive) { removeCurrency(tc.code) } label: {
+                    Label("移除", systemImage: "minus.circle")
+                }
+            }
+        }
+    }
+
+    // ── 未選列 ─────────────────────────────────────────────────
+    @ViewBuilder
+    private func currencyRowUnselected(tc: TravelCurrency) -> some View {
+        HStack(spacing: 14) {
+            CurrencyFlagView(tc: tc, size: 36)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(tc.name)
+                    .font(.system(.body, design: .rounded))
+                    .fontWeight(.semibold)
+                    .foregroundColor(AppTheme.textPrimary)
+                Text(tc.code)
+                    .font(.caption)
+                    .foregroundColor(AppTheme.textSecondary)
+            }
+            Spacer()
+            Image(systemName: "plus.circle.fill")
+                .foregroundColor(AppTheme.primary)
+                .font(.title3)
+        }
+        .contentShape(Rectangle())
+    }
+
+    // ── helpers ────────────────────────────────────────────────
+    private func addCurrency(_ code: String) {
+        guard !selectedOrder.contains(code) else { return }
+        selectedOrder.append(code)
+        persist()
+    }
+
+    private func removeCurrency(_ code: String) {
+        guard selectedOrder.count > 2 else { return }
+        selectedOrder.removeAll { $0 == code }
+        persist()
+    }
+
+    private func persist() {
+        savedCurrencies = selectedOrder.joined(separator: ",")
     }
 }

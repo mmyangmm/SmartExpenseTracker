@@ -365,10 +365,18 @@ struct ExpenseRow: View {
                     .foregroundColor(AppTheme.textSecondary)
             }
             Spacer()
-            Text((expense.isIncome ? "+" : "") + expense.formattedAmount)
-                .font(.system(.subheadline, design: .rounded))
-                .fontWeight(.bold)
-                .foregroundColor(expense.isIncome ? Color(hex: "34C759") : AppTheme.textPrimary)
+            VStack(alignment: .trailing, spacing: 2) {
+                Text((expense.isIncome ? "+" : "") + expense.formattedAmount)
+                    .font(.system(.subheadline, design: .rounded))
+                    .fontWeight(.bold)
+                    .foregroundColor(expense.isIncome ? Color(hex: "34C759") : AppTheme.textPrimary)
+                // 出國記錄顯示台幣換算
+                if expense.isTravelExpense {
+                    Text(expense.formattedAmountTWD)
+                        .font(.caption2)
+                        .foregroundColor(AppTheme.textSecondary)
+                }
+            }
         }
         .padding(14)
         .cuteRow()

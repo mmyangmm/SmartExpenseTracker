@@ -4,9 +4,23 @@ import Vision
 import UIKit
 
 struct QuickAddView: View {
-    @EnvironmentObject var viewModel: ExpenseViewModel
+    @EnvironmentObject var viewModel:            ExpenseViewModel
+    @EnvironmentObject var exchangeRateService:  ExchangeRateService
     @Binding var isPresented: Bool
     var existingExpense: Expense? = nil
+
+    @AppStorage("travelModeEnabled")   private var travelModeEnabled:   Bool   = false
+    @AppStorage("travelModeCurrency")  private var travelModeCurrency:  String = "JPY"
+    @AppStorage("travelModeSessionId") private var travelModeSessionId: String = ""
+
+    private var travelCurrency: TravelCurrency? {
+        travelModeEnabled ? TravelCurrency.find(travelModeCurrency) : nil
+    }
+    private var currencySymbol: String { travelCurrency?.symbol ?? "NT$" }
+    private var twdHint: String? {
+        guard travelModeEnabled, let amt = Double(amountText), amt > 0 else { return nil }
+        return exchangeRateService.twdText(from: amt)
+    }
 
     @State private var amountText:        String          = ""
     @State private var selectedCategory:  ExpenseCategory = .food
@@ -47,7 +61,12 @@ struct QuickAddView: View {
                             }
                         }
 
-                        AmountDisplaySection(amountText: amountText, isIncome: isIncome)
+                        AmountDisplaySection(
+                            amountText:     amountText,
+                            isIncome:       isIncome,
+                            currencySymbol: currencySymbol,
+                            twdHint:        twdHint
+                        )
                         CategoryPickerSection(selectedCategory: $selectedCategory, isIncome: isIncome)
                         NoteSection(note: $note)
                         DateSection(date: $date, showPicker: $showDatePicker)
@@ -122,17 +141,38 @@ struct QuickAddView: View {
     }
 
     private func save() {
-        guard let amount = Double(amountText), amount > 0 else { return }
+        guard let inputAmt = Double(amountText), inputAmt > 0 else { return }
+
+        // 出國模式：儲存外幣原金額，amount 換算成台幣
+        let (savedAmount, currency, originalAmount, sessionId): (Double, String?, Double?, String?)
+        if travelModeEnabled, let tc = travelCurrency, exchangeRateService.rateToTWD > 0 {
+            savedAmount    = exchangeRateService.toTWD(inputAmt)
+            currency       = tc.code
+            originalAmount = inputAmt
+            sessionId      = travelModeSessionId.isEmpty ? nil : travelModeSessionId
+        } else {
+            savedAmount    = inputAmt
+            currency       = nil
+            originalAmount = nil
+            sessionId      = nil
+        }
+
         if let existing = existingExpense {
             let updated = Expense(
-                id: existing.id, amount: amount, category: selectedCategory,
+                id: existing.id, amount: savedAmount, category: selectedCategory,
                 note: note, date: date, isIncome: isIncome,
+                currency: currency, originalAmount: originalAmount,
+                travelSessionId: sessionId,
                 receiptImageData: existing.receiptImageData
             )
             viewModel.update(updated)
         } else {
-            viewModel.add(Expense(amount: amount, category: selectedCategory,
-                                  note: note, date: date, isIncome: isIncome))
+            viewModel.add(Expense(
+                amount: savedAmount, category: selectedCategory,
+                note: note, date: date, isIncome: isIncome,
+                currency: currency, originalAmount: originalAmount,
+                travelSessionId: sessionId
+            ))
         }
         isPresented = false
     }
@@ -215,8 +255,10 @@ struct QuickAddView: View {
 // MARK: - Amount Display
 
 struct AmountDisplaySection: View {
-    let amountText: String
-    var isIncome: Bool = false
+    let amountText:     String
+    var isIncome:       Bool    = false
+    var currencySymbol: String  = "NT$"
+    var twdHint:        String? = nil   // 出國模式下顯示台幣換算
 
     private var activeColor: Color {
         isIncome ? Color(hex: "34C759") : AppTheme.primary
@@ -228,7 +270,7 @@ struct AmountDisplaySection: View {
                 Image(systemName: isIncome ? "plus.circle.fill" : "minus.circle.fill")
                     .foregroundColor(activeColor)
                     .font(.caption)
-                Text("NT$")
+                Text(currencySymbol)
                     .font(.system(.title3, design: .rounded))
                     .foregroundColor(AppTheme.textSecondary)
             }
@@ -239,11 +281,19 @@ struct AmountDisplaySection: View {
                 .lineLimit(1)
                 .frame(maxWidth: .infinity)
                 .frame(height: 72)
+            // 台幣換算提示（出國模式）
+            if let hint = twdHint {
+                Text(hint)
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundColor(AppTheme.textSecondary)
+                    .transition(.opacity)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 18)
         .padding(.horizontal)
         .cuteCard()
+        .animation(.easeInOut(duration: 0.15), value: twdHint)
     }
 }
 

@@ -21,6 +21,9 @@
 		11E8E79C2FA22DC400A53109 /* ExpenseViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E8E7872FA22DC400A53109 /* ExpenseViewModel.swift */; };
 		11E8E79D2FA22DC400A53109 /* ReceiptScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E8E78C2FA22DC400A53109 /* ReceiptScannerView.swift */; };
 		11E8E79E2FA22DC400A53109 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E8E79F2FA22DC400A53109 /* AppTheme.swift */; };
+		AABB00022FA22DC400A53109 /* ExchangeRateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB00012FA22DC400A53109 /* ExchangeRateService.swift */; };
+		AABB00042FA22DC400A53109 /* TravelCurrency.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB00032FA22DC400A53109 /* TravelCurrency.swift */; };
+		AABB00062FA22DC400A53109 /* TravelModeSummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB00052FA22DC400A53109 /* TravelModeSummaryView.swift */; };
 		/* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -58,6 +61,9 @@
 		11E8E78E2FA22DC400A53109 /* StatisticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsView.swift; sourceTree = "<group>"; };
 		11E8E78F2FA22DC400A53109 /* VoiceInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInputView.swift; sourceTree = "<group>"; };
 		11E8E79F2FA22DC400A53109 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
+		AABB00012FA22DC400A53109 /* ExchangeRateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExchangeRateService.swift; sourceTree = "<group>"; };
+		AABB00032FA22DC400A53109 /* TravelCurrency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelCurrency.swift; sourceTree = "<group>"; };
+		AABB00052FA22DC400A53109 /* TravelModeSummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelModeSummaryView.swift; sourceTree = "<group>"; };
 		/* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -140,6 +146,7 @@
 			isa = PBXGroup;
 			children = (
 				11E8E7812FA22DC400A53109 /* Expense.swift */,
+				AABB00032FA22DC400A53109 /* TravelCurrency.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -148,6 +155,7 @@
 			isa = PBXGroup;
 			children = (
 				11E8E7832FA22DC400A53109 /* CloudKitService.swift */,
+				AABB00012FA22DC400A53109 /* ExchangeRateService.swift */,
 				11E8E7842FA22DC400A53109 /* NotificationService.swift */,
 				11E8E7852FA22DC400A53109 /* SpeechService.swift */,
 			);
@@ -172,6 +180,7 @@
 				11E8E78C2FA22DC400A53109 /* ReceiptScannerView.swift */,
 				11E8E78D2FA22DC400A53109 /* SettingsView.swift */,
 				11E8E78E2FA22DC400A53109 /* StatisticsView.swift */,
+				AABB00052FA22DC400A53109 /* TravelModeSummaryView.swift */,
 				11E8E78F2FA22DC400A53109 /* VoiceInputView.swift */,
 			);
 			path = Views;
@@ -335,6 +344,9 @@
 				11E8E79C2FA22DC400A53109 /* ExpenseViewModel.swift in Sources */,
 				11E8E79D2FA22DC400A53109 /* ReceiptScannerView.swift in Sources */,
 				11E8E79E2FA22DC400A53109 /* AppTheme.swift in Sources */,
+				AABB00022FA22DC400A53109 /* ExchangeRateService.swift in Sources */,
+				AABB00042FA22DC400A53109 /* TravelCurrency.swift in Sources */,
+				AABB00062FA22DC400A53109 /* TravelModeSummaryView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

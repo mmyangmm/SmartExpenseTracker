@@ -1,8 +1,10 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @EnvironmentObject var viewModel: ExpenseViewModel
+    @EnvironmentObject var viewModel:           ExpenseViewModel
     @EnvironmentObject var notificationService: NotificationService
+    @EnvironmentObject var exchangeRateService: ExchangeRateService
+
     @State private var showClearConfirm  = false
     @State private var showExportSheet   = false
     @State private var exportURL: URL?   = nil
@@ -10,6 +12,16 @@ struct SettingsView: View {
     @State private var currentIconName: String? = UIApplication.shared.alternateIconName
     @State private var iconSwitchError: String? = nil
     @AppStorage("appTheme") private var appTheme: String = ThemeVariant.pink.rawValue
+
+    // 出國模式
+    @AppStorage("travelModeEnabled")   private var travelModeEnabled:   Bool   = false
+    @AppStorage("travelModeCurrency")  private var travelModeCurrency:  String = "JPY"
+    @AppStorage("travelModeStartTs")   private var travelModeStartTs:   Double = 0
+    @AppStorage("travelModeSessionId") private var travelModeSessionId: String = ""
+    @State private var showCurrencyPicker   = false
+    @State private var showTravelSummary    = false
+    @State private var summarySessionId     = ""
+    @State private var summaryCurrencyCode  = ""
 
     var body: some View {
         NavigationStack {
@@ -103,6 +115,107 @@ struct SettingsView: View {
                     Text("🔔  通知提醒")
                 }
 
+                // MARK: 出國模式
+                Section {
+                    // 主開關
+                    Toggle(isOn: $travelModeEnabled) {
+                        Label("出國模式", systemImage: "airplane")
+                    }
+                    .tint(AppTheme.primary)
+                    .onChange(of: travelModeEnabled) { enabled in
+                        if enabled {
+                            // 開啟：建立新旅程 session
+                            travelModeStartTs   = Date().timeIntervalSince1970
+                            travelModeSessionId = UUID().uuidString
+                            Task { await exchangeRateService.fetchRate(for: travelModeCurrency) }
+                        } else {
+                            // 關閉：先記錄 session 資訊，再顯示結算
+                            summarySessionId    = travelModeSessionId
+                            summaryCurrencyCode = travelModeCurrency
+                            if !summarySessionId.isEmpty {
+                                showTravelSummary = true
+                            }
+                        }
+                    }
+
+                    if travelModeEnabled {
+                        // 幣別選擇
+                        Button {
+                            showCurrencyPicker = true
+                        } label: {
+                            HStack {
+                                if let tc = TravelCurrency.find(travelModeCurrency) {
+                                    Label {
+                                        Text("\(tc.flag)  \(tc.name)（\(tc.code)）")
+                                            .foregroundColor(AppTheme.textPrimary)
+                                    } icon: {
+                                        Image(systemName: "dollarsign.circle")
+                                            .foregroundColor(AppTheme.primary)
+                                    }
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundColor(AppTheme.textSecondary)
+                            }
+                        }
+
+                        // 即時匯率
+                        HStack {
+                            Label("即時匯率", systemImage: "arrow.2.circlepath")
+                                .foregroundColor(AppTheme.textPrimary)
+                            Spacer()
+                            if exchangeRateService.isLoading {
+                                ProgressView().scaleEffect(0.75)
+                            } else {
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    if exchangeRateService.rateToTWD > 0 {
+                                        let rateStr = exchangeRateService.rateToTWD >= 1
+                                            ? String(format: "NT$ %.2f", exchangeRateService.rateToTWD)
+                                            : String(format: "NT$ %.4f", exchangeRateService.rateToTWD)
+                                        Text("1 \(travelModeCurrency) = \(rateStr)")
+                                            .font(.system(.caption, design: .rounded))
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(AppTheme.textPrimary)
+                                    }
+                                    if let err = exchangeRateService.errorMessage {
+                                        Text(err)
+                                            .font(.caption2)
+                                            .foregroundColor(.orange)
+                                    }
+                                }
+                            }
+                        }
+
+                        // 重新整理按鈕
+                        Button {
+                            Task { await exchangeRateService.fetchRate(for: travelModeCurrency) }
+                        } label: {
+                            Label("重新整理匯率", systemImage: "arrow.triangle.2.circlepath")
+                                .font(.callout)
+                        }
+                        .foregroundColor(AppTheme.primary)
+
+                        // 出發日期
+                        if travelModeStartTs > 0 {
+                            LabeledContent("出發日期") {
+                                Text(Date(timeIntervalSince1970: travelModeStartTs),
+                                     style: .date)
+                                    .font(.callout)
+                                    .foregroundColor(AppTheme.textSecondary)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("✈️  出國模式")
+                } footer: {
+                    if travelModeEnabled {
+                        Text("出國模式進行中，記帳金額以 \(travelModeCurrency) 計算，自動換算台幣。關閉後將顯示旅行結算。")
+                    } else {
+                        Text("開啟後以外幣記帳，並即時顯示台幣換算。")
+                    }
+                }
+
                 // MARK: 資料管理
                 Section {
                     Button { exportData() } label: {
@@ -170,6 +283,20 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showExportSheet) {
                 if let url = exportURL { ShareSheet(items: [url]) }
+            }
+            // 幣別選擇器
+            .sheet(isPresented: $showCurrencyPicker) {
+                CurrencyPickerSheet(selected: $travelModeCurrency) {
+                    // 幣別變更後重新取匯率
+                    Task { await exchangeRateService.fetchRate(for: travelModeCurrency) }
+                }
+            }
+            // 旅行結算
+            .sheet(isPresented: $showTravelSummary) {
+                TravelModeSummaryView(
+                    sessionId:    summarySessionId,
+                    currencyCode: summaryCurrencyCode
+                )
             }
         }
     }
@@ -330,6 +457,54 @@ struct AppIconCell: View {
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - Currency Picker Sheet
+
+struct CurrencyPickerSheet: View {
+    @Binding var selected: String
+    @Environment(\.dismiss) var dismiss
+    let onSelect: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            List(TravelCurrency.all) { tc in
+                Button {
+                    selected = tc.code
+                    onSelect()
+                    dismiss()
+                } label: {
+                    HStack(spacing: 14) {
+                        Text(tc.flag).font(.title2)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(tc.name)
+                                .font(.system(.body, design: .rounded))
+                                .fontWeight(.semibold)
+                                .foregroundColor(AppTheme.textPrimary)
+                            Text(tc.code)
+                                .font(.caption)
+                                .foregroundColor(AppTheme.textSecondary)
+                        }
+                        Spacer()
+                        if tc.code == selected {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(AppTheme.primary)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            .navigationTitle("選擇幣別")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("取消") { dismiss() }
+                        .foregroundColor(AppTheme.primary)
+                }
+            }
+        }
     }
 }
 

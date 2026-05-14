@@ -105,13 +105,23 @@ enum ExpenseCategory: String, CaseIterable, Codable, Identifiable {
 
 struct Expense: Identifiable, Codable {
     var id: String
-    var amount: Double
+    var amount: Double          // 永遠以台幣（TWD）儲存
     var category: ExpenseCategory
     var note: String
     var date: Date
     var isIncome: Bool
+    // ── 出國模式欄位（舊資料為 nil）─────────────────────────
+    var currency: String?        // 外幣代碼，nil 或 "TWD" 表示台幣記錄
+    var originalAmount: Double?  // 外幣原始金額
+    var travelSessionId: String? // 旅程 UUID，用於結算
+    // ─────────────────────────────────────────────────────
     var receiptImageData: Data?
     var cloudKitRecordName: String?
+
+    var isTravelExpense: Bool {
+        guard let cur = currency, cur != "TWD", originalAmount != nil else { return false }
+        return true
+    }
 
     init(
         id: String = UUID().uuidString,
@@ -120,40 +130,62 @@ struct Expense: Identifiable, Codable {
         note: String = "",
         date: Date = Date(),
         isIncome: Bool = false,
+        currency: String? = nil,
+        originalAmount: Double? = nil,
+        travelSessionId: String? = nil,
         receiptImageData: Data? = nil
     ) {
-        self.id = id
-        self.amount = amount
-        self.category = category
-        self.note = note
-        self.date = date
-        self.isIncome = isIncome
+        self.id               = id
+        self.amount           = amount
+        self.category         = category
+        self.note             = note
+        self.date             = date
+        self.isIncome         = isIncome
+        self.currency         = currency
+        self.originalAmount   = originalAmount
+        self.travelSessionId  = travelSessionId
         self.receiptImageData = receiptImageData
     }
 
-    // Backward-compatible decoding (old records have no isIncome field)
+    // Backward-compatible decoding
     enum CodingKeys: String, CodingKey {
-        case id, amount, category, note, date, isIncome, receiptImageData, cloudKitRecordName
+        case id, amount, category, note, date, isIncome
+        case currency, originalAmount, travelSessionId
+        case receiptImageData, cloudKitRecordName
     }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id               = try c.decode(String.self,           forKey: .id)
-        amount           = try c.decode(Double.self,           forKey: .amount)
-        category         = try c.decode(ExpenseCategory.self,  forKey: .category)
-        note             = try c.decode(String.self,           forKey: .note)
-        date             = try c.decode(Date.self,             forKey: .date)
-        isIncome         = (try? c.decode(Bool.self,           forKey: .isIncome)) ?? false
+        id               = try  c.decode(String.self,          forKey: .id)
+        amount           = try  c.decode(Double.self,          forKey: .amount)
+        category         = try  c.decode(ExpenseCategory.self, forKey: .category)
+        note             = try  c.decode(String.self,          forKey: .note)
+        date             = try  c.decode(Date.self,            forKey: .date)
+        isIncome         = (try? c.decode(Bool.self,           forKey: .isIncome))        ?? false
+        currency         = try? c.decode(String.self,          forKey: .currency)
+        originalAmount   = try? c.decode(Double.self,          forKey: .originalAmount)
+        travelSessionId  = try? c.decode(String.self,          forKey: .travelSessionId)
         receiptImageData = try? c.decode(Data.self,            forKey: .receiptImageData)
         cloudKitRecordName = try? c.decode(String.self,        forKey: .cloudKitRecordName)
     }
 
+    /// 主要顯示金額：出國記錄顯示外幣，普通記錄顯示 NT$
     var formattedAmount: String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencyCode = "TWD"
-        formatter.currencySymbol = "NT$"
-        formatter.maximumFractionDigits = 0
-        return formatter.string(from: NSNumber(value: amount)) ?? "NT$\(Int(amount))"
+        if let orig = originalAmount, let cur = currency, cur != "TWD",
+           let tc = TravelCurrency.find(cur) {
+            return tc.format(orig)
+        }
+        return Self.formatTWD(amount)
+    }
+
+    /// 永遠顯示台幣金額
+    var formattedAmountTWD: String { Self.formatTWD(amount) }
+
+    private static func formatTWD(_ v: Double) -> String {
+        let f = NumberFormatter()
+        f.numberStyle     = .currency
+        f.currencySymbol  = "NT$"
+        f.maximumFractionDigits = 0
+        return f.string(from: NSNumber(value: v)) ?? "NT$\(Int(v))"
     }
 
     var formattedDate: String {
@@ -172,32 +204,38 @@ extension Expense {
 
     nonisolated func toCKRecord() -> CKRecord {
         let recordID = CKRecord.ID(recordName: id)
-        let record = CKRecord(recordType: Self.ckRecordType, recordID: recordID)
-        record["amount"]   = amount as CKRecordValue
-        record["category"] = category.rawValue as CKRecordValue
-        record["note"]     = note as CKRecordValue
-        record["date"]     = date as CKRecordValue
-        record["isIncome"] = (isIncome ? 1 : 0) as CKRecordValue
+        let record   = CKRecord(recordType: Self.ckRecordType, recordID: recordID)
+        record["amount"]         = amount as CKRecordValue
+        record["category"]       = category.rawValue as CKRecordValue
+        record["note"]           = note as CKRecordValue
+        record["date"]           = date as CKRecordValue
+        record["isIncome"]       = (isIncome ? 1 : 0) as CKRecordValue
+        if let cur = currency        { record["currency"]        = cur  as CKRecordValue }
+        if let orig = originalAmount { record["originalAmount"]  = orig as CKRecordValue }
+        if let sid = travelSessionId { record["travelSessionId"] = sid  as CKRecordValue }
         return record
     }
 
     nonisolated static func fromCKRecord(_ record: CKRecord) -> Expense? {
         guard
-            let amount      = record["amount"] as? Double,
+            let amount      = record["amount"]   as? Double,
             let categoryRaw = record["category"] as? String,
             let category    = ExpenseCategory(rawValue: categoryRaw),
-            let note        = record["note"] as? String,
-            let date        = record["date"] as? Date
+            let note        = record["note"]     as? String,
+            let date        = record["date"]     as? Date
         else { return nil }
 
-        let isIncome = (record["isIncome"] as? Int64 ?? 0) != 0
+        let isIncome       = (record["isIncome"]  as? Int64 ?? 0) != 0
+        let currency       = record["currency"]        as? String
+        let originalAmount = record["originalAmount"]  as? Double
+        let travelSessionId = record["travelSessionId"] as? String
+
         var expense = Expense(
             id: record.recordID.recordName,
-            amount: amount,
-            category: category,
-            note: note,
-            date: date,
-            isIncome: isIncome
+            amount: amount, category: category, note: note, date: date,
+            isIncome: isIncome,
+            currency: currency, originalAmount: originalAmount,
+            travelSessionId: travelSessionId
         )
         expense.cloudKitRecordName = record.recordID.recordName
         return expense

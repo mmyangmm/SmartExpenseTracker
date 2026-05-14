@@ -160,39 +160,11 @@ struct MonthSummaryCard: View {
                 .frame(maxWidth: .infinity)
             }
 
-            // ── 結餘 ────────────────────────────────────────────
-            let balance = viewModel.currentMonthBalance
-            HStack {
-                Text("結餘")
-                    .font(.system(.subheadline, design: .rounded))
-                    .foregroundColor(AppTheme.textSecondary)
-                Spacer()
-                Text(formatBalance(balance))
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
-                    .foregroundColor(balance >= 0 ? Color(hex: "34C759") : Color(hex: "FF3B30"))
-            }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 10)
-            .background((balance >= 0 ? Color(hex: "34C759") : Color(hex: "FF3B30")).opacity(0.08))
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-            // ── 與上月支出比較 ───────────────────────────────────
-            let prevTotal = viewModel.previousMonthTotal()
-            if prevTotal > 0 {
-                let diff = viewModel.currentMonthExpenseTotal - prevTotal
-                let pct  = abs(diff) / prevTotal * 100
-                HStack(spacing: 4) {
-                    Image(systemName: diff >= 0 ? "arrow.up.right" : "arrow.down.right")
-                        .font(.caption2)
-                    Text(String(format: "支出較上月 %.1f%%", pct))
-                        .font(.caption)
-                }
-                .foregroundColor(diff >= 0 ? .red.opacity(0.8) : AppTheme.mint)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 5)
-                .background((diff >= 0 ? Color.red : AppTheme.mint).opacity(0.10))
-                .clipShape(Capsule())
-            }
+            // ── 消費比較 ─────────────────────────────────────────
+            ConsumptionComparisonBar(
+                current: viewModel.currentMonthExpenseTotal,
+                average: viewModel.sixMonthAverageExpense()
+            )
         }
         .padding(20)
         .cuteCard()
@@ -205,14 +177,90 @@ struct MonthSummaryCard: View {
         f.maximumFractionDigits = 0
         return f.string(from: NSNumber(value: v)) ?? "NT$\(Int(v))"
     }
+}
 
-    private func formatBalance(_ v: Double) -> String {
+// MARK: - Consumption Comparison Bar
+
+struct ConsumptionComparisonBar: View {
+    let current: Double
+    let average: Double
+
+    private var hasHistory: Bool { average > 0 }
+    private var isOverBudget: Bool { hasHistory && current > average }
+    private var barColor: Color { isOverBudget ? Color(hex: "FF3B30") : AppTheme.primary }
+
+    /// current / average ratio, capped at 1 for the bar width
+    private var fillRatio: Double {
+        guard average > 0 else { return current > 0 ? 1.0 : 0.0 }
+        return min(current / average, 1.0)
+    }
+
+    private var pctText: String {
+        guard average > 0 else { return "" }
+        return String(format: " (%.0f%%)", current / average * 100)
+    }
+
+    private func fmt(_ v: Double) -> String {
         let f = NumberFormatter()
         f.numberStyle = .currency
         f.currencySymbol = "NT$"
         f.maximumFractionDigits = 0
-        let prefix = v > 0 ? "+" : ""
-        return prefix + (f.string(from: NSNumber(value: v)) ?? "NT$\(Int(v))")
+        return f.string(from: NSNumber(value: v)) ?? "NT$\(Int(v))"
+    }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            // 標題列
+            HStack {
+                Text("本月消費")
+                    .font(.caption)
+                    .foregroundColor(AppTheme.textSecondary)
+                Spacer()
+                if hasHistory {
+                    Text("6個月平均")
+                        .font(.caption)
+                        .foregroundColor(AppTheme.textSecondary)
+                }
+            }
+
+            // 進度條
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    // 底色（代表 6 個月平均 = 100%）
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(AppTheme.border)
+                        .frame(height: 9)
+
+                    // 本月消費填色
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(barColor)
+                        .frame(width: max(geo.size.width * fillRatio, 4), height: 9)
+                        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: fillRatio)
+                }
+            }
+            .frame(height: 9)
+
+            // 金額列
+            HStack {
+                // 本月金額 + 百分比
+                HStack(spacing: 0) {
+                    Text(fmt(current))
+                        .fontWeight(.semibold)
+                    Text(pctText)
+                }
+                .font(.system(.caption, design: .rounded))
+                .foregroundColor(isOverBudget ? Color(hex: "FF3B30") : AppTheme.textPrimary)
+
+                Spacer()
+
+                if hasHistory {
+                    Text(fmt(average))
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundColor(AppTheme.textSecondary)
+                }
+            }
+        }
+        .padding(.top, 2)
     }
 }
 
@@ -344,7 +392,7 @@ struct EmptyStateView: View {
                 .font(.system(.subheadline, design: .rounded))
                 .fontWeight(.semibold)
                 .foregroundColor(AppTheme.textSecondary)
-            Text("點下方 ＋ 開始記帳吧！")
+            Text("點下方「記帳」開始記帳吧！")
                 .font(.caption)
                 .foregroundColor(AppTheme.textSecondary.opacity(0.7))
         }

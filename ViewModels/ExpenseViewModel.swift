@@ -89,6 +89,22 @@ class ExpenseViewModel: ObservableObject {
             .reduce(0) { $0 + $1.amount }
     }
 
+    /// 過去 6 個月支出平均（不含當月）
+    func sixMonthAverageExpense() -> Double {
+        let cal = Calendar.current
+        var total = 0.0
+        var counted = 0
+        for i in 1...6 {
+            guard let month = cal.date(byAdding: .month, value: -i, to: selectedMonth) else { continue }
+            let monthTotal = expenses
+                .filter { !$0.isIncome && cal.isDate($0.date, equalTo: month, toGranularity: .month) }
+                .reduce(0) { $0 + $1.amount }
+            total += monthTotal
+            counted += 1
+        }
+        return counted > 0 ? total / Double(counted) : 0
+    }
+
     func changeMonth(by value: Int) {
         if let newDate = Calendar.current.date(byAdding: .month, value: value, to: selectedMonth) {
             selectedMonth = newDate

@@ -16,7 +16,7 @@ struct SettingsView: View {
             Form {
                 // MARK: 主題色彩
                 Section {
-                    HStack(spacing: 16) {
+                    HStack(spacing: 6) {
                         ForEach(ThemeVariant.allCases) { variant in
                             ThemeOptionCell(
                                 variant: variant,
@@ -216,41 +216,58 @@ struct ThemeOptionCell: View {
     let isSelected: Bool
     let onTap:      () -> Void
 
+    /// Accent colour that represents this variant in the preview
     private var themeColor: Color {
-        variant == .pink ? Color(hex: "FF6B9D") : Color(hex: "3B82F6")
+        switch variant {
+        case .pink:        return Color(hex: "FF6B9D")
+        case .blue:        return Color(hex: "3B82F6")
+        case .systemLight: return Color(hex: "007AFF")
+        case .systemDark:  return Color(hex: "0A84FF")
+        }
     }
+
+    /// Background of the preview box
     private var themeBg: Color {
-        variant == .pink ? Color(hex: "FFF5F9") : Color(hex: "EFF6FF")
+        switch variant {
+        case .pink:        return Color(hex: "FFF5F9")
+        case .blue:        return Color(hex: "EFF6FF")
+        case .systemLight: return Color(hex: "F2F2F7")
+        case .systemDark:  return Color(hex: "3A3A3C")
+        }
+    }
+
+    /// Label text colour inside the preview box
+    private var iconTextColor: Color {
+        variant == .systemDark ? .white : Color(hex: "3D3D3D")
     }
 
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 10) {
+            VStack(spacing: 8) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .fill(themeBg)
-                        .frame(width: 72, height: 72)
+                        .frame(width: 60, height: 60)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .stroke(isSelected ? themeColor : Color.clear, lineWidth: 3)
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .stroke(isSelected ? themeColor : Color.gray.opacity(0.2), lineWidth: 2.5)
                         )
-                    VStack(spacing: 4) {
-                        Text(variant.icon).font(.title2)
-                        Circle().fill(themeColor).frame(width: 20, height: 20)
+                    VStack(spacing: 3) {
+                        Text(variant.icon).font(.title3)
+                        Circle().fill(themeColor).frame(width: 14, height: 14)
                     }
                 }
-                .shadow(color: themeColor.opacity(isSelected ? 0.25 : 0.08), radius: 8, y: 3)
+                .shadow(color: themeColor.opacity(isSelected ? 0.22 : 0.06), radius: 6, y: 2)
 
                 Text(variant.rawValue)
-                    .font(.caption)
+                    .font(.caption2)
                     .fontWeight(isSelected ? .bold : .regular)
                     .foregroundColor(isSelected ? themeColor : AppTheme.textSecondary)
 
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(themeColor)
-                        .font(.caption)
-                }
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(themeColor)
+                    .font(.caption2)
+                    .opacity(isSelected ? 1 : 0)
             }
         }
         .buttonStyle(.plain)

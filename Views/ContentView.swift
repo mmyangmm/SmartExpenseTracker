@@ -4,6 +4,11 @@ struct ContentView: View {
     @EnvironmentObject var viewModel: ExpenseViewModel
     @State private var showQuickAdd = false
     @State private var selectedTab  = 0
+    @AppStorage("appTheme") private var appTheme: String = ThemeVariant.pink.rawValue
+
+    private var activeColorScheme: ColorScheme {
+        ThemeVariant(rawValue: appTheme)?.preferredColorScheme ?? .light
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -20,22 +25,23 @@ struct ContentView: View {
             }
             .accentColor(AppTheme.pink)
 
+            // ── 記帳 FAB ─────────────────────────────────────────
             if selectedTab == 0 {
                 Button { showQuickAdd = true } label: {
-                    ZStack {
-                        Circle()
-                            .fill(AppTheme.pinkGradient)
-                            .frame(width: 64, height: 64)
-                            .shadow(color: AppTheme.pink.opacity(0.40), radius: 12, y: 6)
-                        Image(systemName: "plus")
-                            .font(.system(size: 26, weight: .bold))
-                            .foregroundColor(.white)
-                    }
+                    Text("記帳")
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 32)
+                        .padding(.vertical, 15)
+                        .background(AppTheme.pinkGradient)
+                        .clipShape(Capsule())
+                        .shadow(color: AppTheme.pink.opacity(0.38), radius: 14, y: 6)
                 }
                 .buttonStyle(.plain)
-                .padding(.bottom, 80)
+                .padding(.bottom, 82)
             }
         }
+        .preferredColorScheme(activeColorScheme)
         .sheet(isPresented: $showQuickAdd) {
             QuickAddView(isPresented: $showQuickAdd)
         }

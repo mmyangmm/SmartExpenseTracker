@@ -1,16 +1,51 @@
 import SwiftUI
 
+// MARK: - Taiwan Flag (drawn with SwiftUI — 🇹🇼 doesn't render on all devices)
+
+private struct TaiwanFlagIcon: View {
+    var size: CGFloat
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            // 紅色底
+            Color(hex: "FE0000")
+
+            // 藍色左上角（canton）＋白色太陽
+            ZStack {
+                Color(hex: "000095")
+                Image(systemName: "sun.max.fill")
+                    .resizable()
+                    .scaledToFit()
+                    .foregroundColor(.white)
+                    .padding(size * 0.07)
+            }
+            .frame(width: size * 0.5, height: size * 0.5)
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.18, style: .continuous))
+        // 細邊框讓旗幟感更明顯
+        .overlay(
+            RoundedRectangle(cornerRadius: size * 0.18, style: .continuous)
+                .stroke(Color.black.opacity(0.08), lineWidth: 0.5)
+        )
+    }
+}
+
 // MARK: - Shared Currency Flag View
 
-/// 顯示幣別國旗 emoji，統一大小
+/// TWD 使用 SwiftUI 繪製的台灣國旗；其他幣別顯示 emoji 旗
 struct CurrencyFlagView: View {
     let tc:   TravelCurrency
     var size: CGFloat = 32
 
     var body: some View {
-        Text(tc.flag)
-            .font(.system(size: size * 0.68))
-            .frame(width: size, height: size)
+        if tc.code == "TWD" {
+            TaiwanFlagIcon(size: size)
+        } else {
+            Text(tc.flag)
+                .font(.system(size: size * 0.68))
+                .frame(width: size, height: size)
+        }
     }
 }
 

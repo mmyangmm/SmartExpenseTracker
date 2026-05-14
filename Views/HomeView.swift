@@ -114,7 +114,7 @@ struct MonthSummaryCard: View {
                         .font(.system(size: 13, weight: .bold))
                         .foregroundColor(AppTheme.primary)
                         .frame(width: 34, height: 34)
-                        .background(AppTheme.pinkLight)
+                        .background(AppTheme.primaryLight)
                         .clipShape(Circle())
                 }
                 .disabled(Calendar.current.isDate(viewModel.selectedMonth, equalTo: Date(), toGranularity: .month))
@@ -424,9 +424,19 @@ struct ExpenseDetailView: View {
                                 Text(expense.category.emoji)
                                     .font(.system(size: 40))
                             }
-                            Text(expense.formattedAmount)
+                            // 收入顯示綠色，支出顯示主題色
+                            Text((expense.isIncome ? "+" : "") + expense.formattedAmount)
                                 .font(.system(size: 32, weight: .bold, design: .rounded))
-                                .foregroundColor(AppTheme.textPrimary)
+                                .foregroundColor(expense.isIncome ? Color(hex: "34C759") : AppTheme.textPrimary)
+                            // 類型標籤
+                            Text(expense.isIncome ? "收入" : "支出")
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 3)
+                                .background(expense.isIncome ? Color(hex: "34C759") : AppTheme.primary)
+                                .clipShape(Capsule())
                         }
                         Spacer()
                     }
@@ -446,7 +456,7 @@ struct ExpenseDetailView: View {
                         Image(uiImage: uiImage)
                             .resizable()
                             .scaledToFit()
-                            .cornerRadius(12)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
                 }
 

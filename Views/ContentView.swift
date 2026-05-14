@@ -3,7 +3,8 @@ import SwiftUI
 struct ContentView: View {
     @EnvironmentObject var viewModel: ExpenseViewModel
     @State private var showQuickAdd = false
-    @State private var selectedTab  = 0
+    // @AppStorage 確保主題切換重建 ContentView 時，選中的 tab 不會被重置
+    @AppStorage("selectedTab") private var selectedTab: Int = 0
     @AppStorage("appTheme") private var appTheme: String = ThemeVariant.pink.rawValue
 
     private var activeColorScheme: ColorScheme {

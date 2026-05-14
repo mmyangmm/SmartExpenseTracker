@@ -33,6 +33,7 @@ struct QuickAddView: View {
                         }
                         .pickerStyle(.segmented)
                         .padding(.horizontal, 4)
+                        .tint(AppTheme.primary)
                         .onChange(of: isIncome) { income in
                             // 切換類型時自動切換到對應的預設分類
                             if income {
@@ -272,7 +273,7 @@ struct VoiceStatusBanner: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(AppTheme.mintLight)
+        .background(AppTheme.mint.opacity(0.15))
         .animation(.easeInOut(duration: 0.2), value: speechService.isRecording)
     }
 }
@@ -292,7 +293,7 @@ struct OCRScanningBanner: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(Color(hex: "FFF3ED"))
+        .background(AppTheme.coral.opacity(0.12))
     }
 }
 

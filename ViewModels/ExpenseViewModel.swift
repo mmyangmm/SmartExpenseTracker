@@ -88,6 +88,10 @@ class ExpenseViewModel: ObservableObject {
         }
     }
 
+    func goToCurrentMonth() {
+        selectedMonth = Date()
+    }
+
     // MARK: - AI Category Inference
 
     func inferCategory(from text: String) -> ExpenseCategory {

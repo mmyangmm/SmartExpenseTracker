@@ -1,5 +1,7 @@
 import SwiftUI
 import Speech
+import Vision
+import UIKit
 
 struct QuickAddView: View {
     @EnvironmentObject var viewModel: ExpenseViewModel
@@ -11,7 +13,8 @@ struct QuickAddView: View {
     @State private var note:             String          = ""
     @State private var date:             Date            = Date()
     @State private var showDatePicker:   Bool            = false
-    @State private var showScanner:      Bool            = false
+    @State private var showReceiptCamera: Bool            = false
+    @State private var isOCRScanning:    Bool            = false
 
     @StateObject private var speechService = SpeechService()
 
@@ -20,10 +23,8 @@ struct QuickAddView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-
-                // ── 可捲動的表單區域 ──────────────────────────────
                 ScrollView {
-                    VStack(spacing: 16) {
+                    VStack(spacing: 14) {
                         AmountDisplaySection(amountText: amountText)
                         CategoryPickerSection(selectedCategory: $selectedCategory)
                         NoteSection(note: $note)
@@ -33,27 +34,30 @@ struct QuickAddView: View {
                     .padding(.bottom, 8)
                 }
 
-                // ── 語音狀態列 ───────────────────────────────────
                 if speechService.isRecording || !speechService.transcript.isEmpty {
                     VoiceStatusBanner(speechService: speechService)
                 }
 
-                // ── 計算機鍵盤（固定底部）────────────────────────
+                if isOCRScanning {
+                    OCRScanningBanner()
+                }
+
                 CalcKeyboard(
                     amountText:  $amountText,
                     isRecording: speechService.isRecording,
                     isValid:     !amountText.isEmpty && Double(amountText) != nil,
-                    onCamera:    { showScanner = true },
+                    onCamera:    { showReceiptCamera = true },
                     onSave:      save,
                     onMic:       handleMicTap
                 )
             }
-            .background(Color(.systemGroupedBackground))
+            .background(AppTheme.bg)
             .navigationTitle(isEditing ? "編輯記錄" : "快速記帳")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("取消") { isPresented = false }
+                        .foregroundColor(AppTheme.pink)
                 }
             }
             .onAppear {
@@ -70,19 +74,17 @@ struct QuickAddView: View {
                 }
             }
         }
-        .sheet(isPresented: $showScanner) {
-            ReceiptScannerView(isPresented: $showScanner)
+        .fullScreenCover(isPresented: $showReceiptCamera) {
+            ReceiptCameraView(isPresented: $showReceiptCamera) { img in
+                handleCameraImage(img)
+            }
         }
     }
-
-    // MARK: - Actions
 
     private func handleMicTap() {
         if speechService.isRecording {
             speechService.stopRecording()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                parseVoice()
-            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { parseVoice() }
         } else {
             speechService.startRecording()
         }
@@ -91,9 +93,7 @@ struct QuickAddView: View {
     private func parseVoice() {
         guard !speechService.transcript.isEmpty else { return }
         let result = viewModel.parseVoiceInput(speechService.transcript)
-        if let amt = result.amount {
-            amountText = String(Int(amt))
-        }
+        if let amt = result.amount { amountText = String(Int(amt)) }
         selectedCategory = result.category
         if !result.note.isEmpty { note = result.note }
     }
@@ -102,48 +102,113 @@ struct QuickAddView: View {
         guard let amount = Double(amountText), amount > 0 else { return }
         if let existing = existingExpense {
             let updated = Expense(
-                id:               existing.id,
-                amount:           amount,
-                category:         selectedCategory,
-                note:             note,
-                date:             date,
-                receiptImageData: existing.receiptImageData
+                id: existing.id, amount: amount, category: selectedCategory,
+                note: note, date: date, receiptImageData: existing.receiptImageData
             )
             viewModel.update(updated)
         } else {
-            viewModel.add(Expense(
-                amount:   amount,
-                category: selectedCategory,
-                note:     note,
-                date:     date
-            ))
+            viewModel.add(Expense(amount: amount, category: selectedCategory, note: note, date: date))
         }
         isPresented = false
     }
+
+    // MARK: - Receipt Camera / OCR
+
+    private func handleCameraImage(_ img: UIImage) {
+        isOCRScanning = true
+        Task {
+            let lines = await performOCR(on: img)
+            let fullText = lines.joined(separator: " ")
+
+            await MainActor.run {
+                // 金額
+                if let amt = extractAmount(from: lines) {
+                    amountText = String(Int(amt))
+                }
+                // 分類 + 備註（利用現有的語音解析邏輯）
+                let result = viewModel.parseVoiceInput(fullText)
+                if result.category != .other { selectedCategory = result.category }
+                if !result.note.isEmpty, note.isEmpty { note = result.note }
+                isOCRScanning = false
+            }
+        }
+    }
+
+    private func performOCR(on image: UIImage) async -> [String] {
+        guard let cgImage = image.cgImage else { return [] }
+        return await withCheckedContinuation { continuation in
+            let request = VNRecognizeTextRequest { req, _ in
+                let results = req.results as? [VNRecognizedTextObservation] ?? []
+                let lines = results.compactMap { $0.topCandidates(1).first?.string }
+                continuation.resume(returning: lines)
+            }
+            request.recognitionLanguages = ["zh-Hant", "zh-Hans", "en-US"]
+            request.recognitionLevel = .accurate
+            request.usesLanguageCorrection = true
+
+            let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+            try? handler.perform([request])
+        }
+    }
+
+    private func extractAmount(from lines: [String]) -> Double? {
+        // 貨幣符號 pattern
+        let patterns = [
+            #"NT\$\s*(\d[\d,]*(?:\.\d+)?)"#,
+            #"NTD\s*(\d[\d,]*(?:\.\d+)?)"#,
+            #"\$\s*(\d[\d,]*(?:\.\d+)?)"#,
+            #"(\d[\d,]*(?:\.\d+)?)\s*元"#,
+            #"合計[：:\s]*(\d[\d,]*(?:\.\d+)?)"#,
+            #"總計[：:\s]*(\d[\d,]*(?:\.\d+)?)"#,
+            #"小計[：:\s]*(\d[\d,]*(?:\.\d+)?)"#,
+            #"Total[：:\s]*(\d[\d,]*(?:\.\d+)?)"#,
+        ]
+        for line in lines {
+            for pat in patterns {
+                if let regex = try? NSRegularExpression(pattern: pat, options: .caseInsensitive),
+                   let match = regex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
+                   let r = Range(match.range(at: 1), in: line) {
+                    let numStr = line[r].replacingOccurrences(of: ",", with: "")
+                    if let v = Double(numStr), v > 0 { return v }
+                }
+            }
+        }
+        // fallback：最大數字
+        var biggest: Double = 0
+        for line in lines {
+            if let regex = try? NSRegularExpression(pattern: #"(\d[\d,]*(?:\.\d+)?)"#),
+               let match = regex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
+               let r = Range(match.range(at: 1), in: line) {
+                let numStr = line[r].replacingOccurrences(of: ",", with: "")
+                if let v = Double(numStr), v > biggest { biggest = v }
+            }
+        }
+        return biggest > 0 ? biggest : nil
+    }
 }
 
-// MARK: - Amount Display (read-only)
+// MARK: - Amount Display
 
 struct AmountDisplaySection: View {
     let amountText: String
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 4) {
             Text("NT$")
-                .font(.title2)
-                .foregroundColor(.secondary)
+                .font(.system(.title3, design: .rounded))
+                .foregroundColor(AppTheme.textSecondary)
             Text(amountText.isEmpty ? "0" : amountText)
-                .font(.system(size: 56, weight: .bold, design: .rounded))
-                .multilineTextAlignment(.center)
-                .frame(height: 70)
-                .foregroundColor(amountText.isEmpty ? Color(.systemGray3) : .primary)
+                .font(.system(size: 58, weight: .bold, design: .rounded))
+                .foregroundColor(amountText.isEmpty ? AppTheme.border : AppTheme.textPrimary)
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
+                .frame(maxWidth: .infinity)
+                .frame(height: 72)
         }
         .frame(maxWidth: .infinity)
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(16)
+        .padding(.vertical, 18)
+        .padding(.horizontal)
+        .cuteCard()
     }
 }
 
@@ -156,16 +221,16 @@ struct VoiceStatusBanner: View {
         HStack(spacing: 10) {
             if speechService.isRecording {
                 Image(systemName: "waveform")
-                    .foregroundColor(.teal)
+                    .foregroundColor(AppTheme.mint)
                 Text("正在聆聽…")
-                    .font(.subheadline)
-                    .foregroundColor(.teal)
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundColor(AppTheme.mint)
             } else if !speechService.transcript.isEmpty {
                 Image(systemName: "checkmark.circle.fill")
-                    .foregroundColor(.green)
+                    .foregroundColor(AppTheme.mint)
                 Text(speechService.transcript)
-                    .font(.subheadline)
-                    .foregroundColor(.primary)
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundColor(AppTheme.textPrimary)
                     .lineLimit(1)
                     .truncationMode(.tail)
             }
@@ -173,10 +238,27 @@ struct VoiceStatusBanner: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(speechService.isRecording
-                    ? Color.teal.opacity(0.1)
-                    : Color.green.opacity(0.08))
+        .background(AppTheme.mintLight)
         .animation(.easeInOut(duration: 0.2), value: speechService.isRecording)
+    }
+}
+
+// MARK: - OCR Scanning Banner
+
+struct OCRScanningBanner: View {
+    var body: some View {
+        HStack(spacing: 10) {
+            ProgressView()
+                .tint(AppTheme.coral)
+                .scaleEffect(0.85)
+            Text("正在辨識收據…")
+                .font(.system(.subheadline, design: .rounded))
+                .foregroundColor(AppTheme.coral)
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(Color(hex: "FFF3ED"))
     }
 }
 
@@ -199,54 +281,50 @@ struct CalcKeyboard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Divider()
-            VStack(spacing: 7) {
+            Rectangle()
+                .fill(AppTheme.border)
+                .frame(height: 1)
 
-                // 數字列
+            VStack(spacing: 8) {
                 ForEach(0..<rows.count, id: \.self) { r in
-                    HStack(spacing: 7) {
+                    HStack(spacing: 8) {
                         ForEach(rows[r]) { key in
                             CalcKeyButton(key: key) { handleKey(key) }
                         }
                     }
                 }
 
-                // 動作列：相機 ｜ 儲存 ｜ 麥克風
-                HStack(spacing: 7) {
+                HStack(spacing: 8) {
                     // 相機
                     ActionKeyButton(
-                        icon:   "camera.fill",
-                        label:  "掃描",
-                        color:  .orange,
-                        filled: false,
+                        icon: "camera.fill", label: "掃描",
+                        gradient: AnyShapeStyle(AppTheme.coralGradient),
                         action: onCamera
                     )
-
                     // 儲存
                     ActionKeyButton(
-                        icon:   "checkmark.circle.fill",
-                        label:  "儲存",
-                        color:  .indigo,
-                        filled: true,
+                        icon: "checkmark", label: "儲存",
+                        gradient: AnyShapeStyle(AppTheme.pinkGradient),
                         action: onSave
                     )
                     .opacity(isValid ? 1 : 0.45)
                     .disabled(!isValid)
-
                     // 麥克風
                     ActionKeyButton(
                         icon:   isRecording ? "stop.fill" : "mic.fill",
                         label:  isRecording ? "停止"     : "語音",
-                        color:  isRecording ? .red        : .teal,
-                        filled: false,
+                        gradient: AnyShapeStyle(isRecording
+                            ? LinearGradient(colors: [.red, Color(hex: "FF6B9D")], startPoint: .topLeading, endPoint: .bottomTrailing)
+                            : LinearGradient(colors: [Color(hex: "4ECDC4"), Color(hex: "44CF6C")], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        ),
                         action: onMic
                     )
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.top, 8)
-            .padding(.bottom, 20)   // 底部安全區留白
-            .background(Color(.systemBackground))
+            .padding(.horizontal, 12)
+            .padding(.top, 10)
+            .padding(.bottom, 24)
+            .background(AppTheme.surface)
         }
     }
 
@@ -270,7 +348,6 @@ struct CalcKeyboard: View {
 
 enum CalcKey: Identifiable {
     case digit(Int), dot, delete
-
     var id: String {
         switch self {
         case .digit(let d): return "d\(d)"
@@ -278,7 +355,6 @@ enum CalcKey: Identifiable {
         case .delete:       return "del"
         }
     }
-
     var label: String {
         switch self {
         case .digit(let d): return String(d)
@@ -302,12 +378,13 @@ struct CalcKeyButton: View {
     var body: some View {
         Button(action: action) {
             Text(key.label)
-                .font(.system(size: 22, weight: .medium, design: .rounded))
+                .font(.system(size: 22, weight: .semibold, design: .rounded))
                 .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .background(isDelete ? Color(.systemGray4) : Color(.systemGray6))
-                .foregroundColor(.primary)
-                .cornerRadius(10)
+                .frame(height: 54)
+                .background(isDelete ? AppTheme.pinkLight : AppTheme.surface)
+                .foregroundColor(isDelete ? AppTheme.pink : AppTheme.textPrimary)
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusKey, style: .continuous))
+                .shadow(color: AppTheme.pink.opacity(0.08), radius: 4, y: 2)
         }
         .buttonStyle(.plain)
     }
@@ -316,11 +393,10 @@ struct CalcKeyButton: View {
 // MARK: - Action Key Button
 
 struct ActionKeyButton: View {
-    let icon:   String
-    let label:  String
-    let color:  Color
-    let filled: Bool
-    let action: () -> Void
+    let icon:     String
+    let label:    String
+    let gradient: AnyShapeStyle
+    let action:   () -> Void
 
     var body: some View {
         Button(action: action) {
@@ -328,49 +404,49 @@ struct ActionKeyButton: View {
                 Image(systemName: icon)
                     .font(.system(size: 20, weight: .semibold))
                 Text(label)
-                    .font(.caption)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 54)
-            .background(filled ? color : color.opacity(0.12))
-            .foregroundColor(filled ? .white : color)
-            .cornerRadius(12)
+            .frame(height: 56)
+            .foregroundColor(.white)
+            .background(gradient)
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.radiusKey, style: .continuous))
+            .shadow(color: AppTheme.pink.opacity(0.15), radius: 6, y: 3)
         }
         .buttonStyle(.plain)
     }
 }
 
-// MARK: - Re-used sub-sections (kept from original)
+// MARK: - Category Picker
 
 struct CategoryPickerSection: View {
     @Binding var selectedCategory: ExpenseCategory
-
-    let columns = [GridItem(.adaptive(minimum: 72), spacing: 12)]
+    let columns = [GridItem(.adaptive(minimum: 70), spacing: 10)]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("分類")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                .font(.system(.subheadline, design: .rounded))
+                .fontWeight(.semibold)
+                .foregroundColor(AppTheme.textSecondary)
                 .padding(.horizontal, 4)
 
-            LazyVGrid(columns: columns, spacing: 12) {
+            LazyVGrid(columns: columns, spacing: 10) {
                 ForEach(ExpenseCategory.allCases) { cat in
                     Button { selectedCategory = cat } label: {
                         VStack(spacing: 6) {
                             ZStack {
-                                RoundedRectangle(cornerRadius: 12)
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
                                     .fill(selectedCategory == cat
                                           ? cat.color
-                                          : cat.color.opacity(0.15))
+                                          : cat.color.opacity(0.12))
                                     .frame(height: 50)
                                 Text(cat.emoji).font(.title2)
                             }
                             Text(cat.rawValue)
-                                .font(.caption)
-                                .foregroundColor(selectedCategory == cat ? cat.color : .secondary)
-                                .fontWeight(selectedCategory == cat ? .semibold : .regular)
+                                .font(.caption2)
+                                .fontWeight(selectedCategory == cat ? .bold : .regular)
+                                .foregroundColor(selectedCategory == cat ? cat.color : AppTheme.textSecondary)
                         }
                     }
                     .buttonStyle(.plain)
@@ -378,27 +454,29 @@ struct CategoryPickerSection: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(16)
+        .cuteCard()
     }
 }
+
+// MARK: - Note Section
 
 struct NoteSection: View {
     @Binding var note: String
 
     var body: some View {
-        HStack {
-            Image(systemName: "note.text")
-                .foregroundColor(.secondary)
+        HStack(spacing: 12) {
+            Image(systemName: "pencil")
+                .foregroundColor(AppTheme.pink)
                 .frame(width: 24)
             TextField("備註（選填）", text: $note)
-                .font(.body)
+                .font(.system(.body, design: .rounded))
         }
         .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(16)
+        .cuteCard()
     }
 }
+
+// MARK: - Date Section
 
 struct DateSection: View {
     @Binding var date:       Date
@@ -406,13 +484,17 @@ struct DateSection: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Button { withAnimation { showPicker.toggle() } } label: {
-                HStack {
-                    Image(systemName: "calendar").foregroundColor(.secondary)
-                    Text(formattedDate).foregroundColor(.primary)
+            Button { withAnimation(.spring(response: 0.3)) { showPicker.toggle() } } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "calendar")
+                        .foregroundColor(AppTheme.pink)
+                        .frame(width: 24)
+                    Text(formattedDate)
+                        .font(.system(.body, design: .rounded))
+                        .foregroundColor(AppTheme.textPrimary)
                     Spacer()
                     Image(systemName: showPicker ? "chevron.up" : "chevron.down")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(AppTheme.textSecondary)
                         .font(.caption)
                 }
                 .padding()
@@ -422,12 +504,12 @@ struct DateSection: View {
             if showPicker {
                 DatePicker("", selection: $date, displayedComponents: [.date, .hourAndMinute])
                     .datePickerStyle(.graphical)
+                    .tint(AppTheme.pink)
                     .padding(.horizontal)
                     .padding(.bottom)
             }
         }
-        .background(Color(.systemBackground))
-        .cornerRadius(16)
+        .cuteCard()
     }
 
     private var formattedDate: String {

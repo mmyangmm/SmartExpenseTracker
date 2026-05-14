@@ -136,7 +136,7 @@ extension Expense {
             let date        = record["date"] as? Date
         else { return nil }
 
-        var expense = Expense(
+    var expense = Expense(
             id: record.recordID.recordName,
             amount: amount,
             category: category,

@@ -9,17 +9,37 @@ struct SettingsView: View {
     @State private var showSyncAlert     = false
     @State private var currentIconName: String? = UIApplication.shared.alternateIconName
     @State private var iconSwitchError: String? = nil
+    @AppStorage("appTheme") private var appTheme: String = ThemeVariant.pink.rawValue
 
     var body: some View {
         NavigationStack {
             Form {
+                // MARK: 主題色彩
+                Section {
+                    HStack(spacing: 16) {
+                        ForEach(ThemeVariant.allCases) { variant in
+                            ThemeOptionCell(
+                                variant: variant,
+                                isSelected: appTheme == variant.rawValue
+                            ) {
+                                appTheme = variant.rawValue
+                            }
+                        }
+                    }
+                    .padding(.vertical, 6)
+                } header: {
+                    Text("🎨  主題色彩")
+                } footer: {
+                    Text("切換後立即生效，整個介面配色將同步更新。")
+                }
+
                 // MARK: iCloud 同步
                 Section {
                     HStack {
                         Label("iCloud 同步", systemImage: "icloud.fill")
                         Spacer()
                         if viewModel.isSyncing {
-                            ProgressView().scaleEffect(0.8)
+                            ProgressView().scaleEffect(0.8).tint(AppTheme.pink)
                         } else {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(.green)
@@ -32,19 +52,18 @@ struct SettingsView: View {
                         Label("立即同步", systemImage: "arrow.triangle.2.circlepath")
                     }
                     if let err = viewModel.syncError {
-                        Text(err)
-                            .font(.caption)
-                            .foregroundColor(.red)
+                        Text(err).font(.caption).foregroundColor(.red)
                     }
                 } header: {
-                    Text("備份與同步")
+                    Text("☁️  備份與同步")
                 }
 
-                // MARK: 提醒通知
+                // MARK: 通知提醒
                 Section {
                     Toggle(isOn: $notificationService.reminderEnabled) {
                         Label("每日記帳提醒", systemImage: "bell.fill")
                     }
+                    .tint(AppTheme.pink)
                     if notificationService.reminderEnabled {
                         HStack {
                             Label("提醒時間", systemImage: "clock")
@@ -81,17 +100,14 @@ struct SettingsView: View {
                         }
                     }
                 } header: {
-                    Text("通知提醒")
+                    Text("🔔  通知提醒")
                 }
 
                 // MARK: 資料管理
                 Section {
-                    Button {
-                        exportData()
-                    } label: {
+                    Button { exportData() } label: {
                         Label("匯出 JSON", systemImage: "square.and.arrow.up")
                     }
-
                     Button(role: .destructive) {
                         showClearConfirm = true
                     } label: {
@@ -99,7 +115,7 @@ struct SettingsView: View {
                             .foregroundColor(.red)
                     }
                 } header: {
-                    Text("資料管理")
+                    Text("📊  資料管理")
                 } footer: {
                     Text("共 \(viewModel.expenses.count) 筆記錄")
                 }
@@ -118,26 +134,27 @@ struct SettingsView: View {
                     }
                     .padding(.vertical, 4)
                     if let err = iconSwitchError {
-                        Text(err)
-                            .font(.caption)
-                            .foregroundColor(.red)
+                        Text(err).font(.caption).foregroundColor(.red)
                     }
                 } header: {
-                    Text("App 圖示")
+                    Text("🎨  App 圖示")
                 } footer: {
                     Text("選擇您喜歡的 App 圖示，更換後立即生效。")
                 }
 
                 // MARK: 關於
-                Section("關於") {
+                Section {
                     LabeledContent("版本", value: "1.0.0")
                     LabeledContent("最低系統需求", value: "iOS 16.0")
                     LabeledContent("iCloud Container", value: "iCloud.com.yourcompany.SmartExpenseTracker")
                         .font(.caption)
+                } header: {
+                    Text("ℹ️  關於")
                 }
             }
             .navigationTitle("設定")
             .navigationBarTitleDisplayMode(.large)
+            .accentColor(AppTheme.pink)
             .confirmationDialog("確認清空", isPresented: $showClearConfirm, titleVisibility: .visible) {
                 Button("清空所有資料", role: .destructive) {
                     viewModel.expenses.removeAll()
@@ -152,9 +169,7 @@ struct SettingsView: View {
                 Text("正在從 iCloud 同步資料，請稍候。")
             }
             .sheet(isPresented: $showExportSheet) {
-                if let url = exportURL {
-                    ShareSheet(items: [url])
-                }
+                if let url = exportURL { ShareSheet(items: [url]) }
             }
         }
     }
@@ -163,12 +178,9 @@ struct SettingsView: View {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-
         guard let data = try? encoder.encode(viewModel.expenses) else { return }
-
         let fileName = "expenses_\(formattedDate()).json"
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-
         do {
             try data.write(to: url)
             exportURL = url
@@ -186,19 +198,63 @@ struct SettingsView: View {
 
     private func switchIcon(to option: AppIconOption) {
         guard UIApplication.shared.supportsAlternateIcons else {
-            iconSwitchError = "此裝置不支援更換圖示"
-            return
+            iconSwitchError = "此裝置不支援更換圖示"; return
         }
         UIApplication.shared.setAlternateIconName(option.alternateIconName) { error in
             DispatchQueue.main.async {
-                if let error {
-                    iconSwitchError = "更換失敗：\(error.localizedDescription)"
-                } else {
-                    currentIconName  = option.alternateIconName
-                    iconSwitchError  = nil
+                if let error { iconSwitchError = "更換失敗：\(error.localizedDescription)" }
+                else { currentIconName = option.alternateIconName; iconSwitchError = nil }
+            }
+        }
+    }
+}
+
+// MARK: - Theme Option Cell
+
+struct ThemeOptionCell: View {
+    let variant:    ThemeVariant
+    let isSelected: Bool
+    let onTap:      () -> Void
+
+    private var themeColor: Color {
+        variant == .pink ? Color(hex: "FF6B9D") : Color(hex: "3B82F6")
+    }
+    private var themeBg: Color {
+        variant == .pink ? Color(hex: "FFF5F9") : Color(hex: "EFF6FF")
+    }
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(themeBg)
+                        .frame(width: 72, height: 72)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .stroke(isSelected ? themeColor : Color.clear, lineWidth: 3)
+                        )
+                    VStack(spacing: 4) {
+                        Text(variant.icon).font(.title2)
+                        Circle().fill(themeColor).frame(width: 20, height: 20)
+                    }
+                }
+                .shadow(color: themeColor.opacity(isSelected ? 0.25 : 0.08), radius: 8, y: 3)
+
+                Text(variant.rawValue)
+                    .font(.caption)
+                    .fontWeight(isSelected ? .bold : .regular)
+                    .foregroundColor(isSelected ? themeColor : AppTheme.textSecondary)
+
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(themeColor)
+                        .font(.caption)
                 }
             }
         }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -207,24 +263,9 @@ struct SettingsView: View {
 enum AppIconOption: String, CaseIterable, Identifiable {
     case `default` = "預設"
     case cat       = "貓咪"
-
     var id: String { rawValue }
-
-    /// nil = 預設圖示；其他 = alternate icon name（對應 Info.plist 宣告）
-    var alternateIconName: String? {
-        switch self {
-        case .default: return nil
-        case .cat:     return "AppIconAlt"
-        }
-    }
-
-    var previewAsset: String {
-        switch self {
-        case .default: return "AppIcon"
-        case .cat:     return "AppIconAlt"
-        }
-    }
-
+    var alternateIconName: String? { self == .default ? nil : "AppIconAlt" }
+    var previewAsset: String { self == .default ? "AppIcon" : "AppIconAlt" }
     var label: String { rawValue }
 }
 
@@ -240,17 +281,13 @@ struct AppIconCell: View {
             VStack(spacing: 8) {
                 Group {
                     if let img = UIImage(named: option.previewAsset) {
-                        Image(uiImage: img)
-                            .resizable()
-                            .scaledToFill()
+                        Image(uiImage: img).resizable().scaledToFill()
                     } else {
-                        // fallback: 用系統 icon 顏色方塊
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(option == .default ? Color.indigo : Color.teal)
+                            .fill(option == .default ? AppTheme.purple : AppTheme.mint)
                             .overlay(
                                 Image(systemName: option == .default ? "yensign.circle.fill" : "cat.fill")
-                                    .font(.largeTitle)
-                                    .foregroundColor(.white)
+                                    .font(.largeTitle).foregroundColor(.white)
                             )
                     }
                 }
@@ -258,18 +295,18 @@ struct AppIconCell: View {
                 .clipShape(RoundedRectangle(cornerRadius: 16))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(isSelected ? Color.indigo : Color.clear, lineWidth: 3)
+                        .stroke(isSelected ? AppTheme.pink : Color.clear, lineWidth: 3)
                 )
-                .shadow(color: .black.opacity(0.12), radius: 6, y: 3)
+                .shadow(color: AppTheme.pink.opacity(isSelected ? 0.25 : 0.08), radius: 8, y: 3)
 
                 Text(option.label)
                     .font(.caption)
-                    .fontWeight(isSelected ? .semibold : .regular)
-                    .foregroundColor(isSelected ? .indigo : .secondary)
+                    .fontWeight(isSelected ? .bold : .regular)
+                    .foregroundColor(isSelected ? AppTheme.pink : AppTheme.textSecondary)
 
                 if isSelected {
                     Image(systemName: "checkmark.circle.fill")
-                        .foregroundColor(.indigo)
+                        .foregroundColor(AppTheme.pink)
                         .font(.caption)
                 }
             }
@@ -283,10 +320,8 @@ struct AppIconCell: View {
 
 struct ShareSheet: UIViewControllerRepresentable {
     let items: [Any]
-
     func makeUIViewController(context: Context) -> UIActivityViewController {
         UIActivityViewController(activityItems: items, applicationActivities: nil)
     }
-
     func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
 }

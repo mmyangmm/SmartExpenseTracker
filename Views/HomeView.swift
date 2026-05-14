@@ -4,32 +4,47 @@ struct HomeView: View {
     @EnvironmentObject var viewModel: ExpenseViewModel
     @State private var selectedExpense: Expense? = nil
 
+    private var isCurrentMonth: Bool {
+        Calendar.current.isDate(viewModel.selectedMonth, equalTo: Date(), toGranularity: .month)
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    // 月份選擇器 + 總金額
                     MonthSummaryCard()
                         .padding(.horizontal)
-
-                    // 分類快速列
                     CategorySummaryRow()
                         .padding(.horizontal)
-
-                    // 最近記錄
                     RecentExpensesList(selectedExpense: $selectedExpense)
                         .padding(.horizontal)
                 }
                 .padding(.top)
-                .padding(.bottom, 120) // 讓 FAB 不遮住最後一筆
+                .padding(.bottom, 120)
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("智慧記帳")
+            .background(AppTheme.bg)
+            // ── 左右滑切換月份 ─────────────────────────────
+            .gesture(
+                DragGesture(minimumDistance: 40)
+                    .onEnded { value in
+                        let h = value.translation.width
+                        let v = value.translation.height
+                        guard abs(h) > abs(v) else { return }  // 確保是水平滑動
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            if h > 0 {
+                                viewModel.changeMonth(by: -1)  // 右滑 → 上個月
+                            } else if !isCurrentMonth {
+                                viewModel.changeMonth(by: 1)   // 左滑 → 下個月
+                            }
+                        }
+                    }
+            )
+            .navigationTitle("i 記帳")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if viewModel.isSyncing {
-                        ProgressView().scaleEffect(0.8)
+                        ProgressView().scaleEffect(0.8).tint(AppTheme.primary)
                     }
                 }
             }
@@ -45,38 +60,75 @@ struct HomeView: View {
 struct MonthSummaryCard: View {
     @EnvironmentObject var viewModel: ExpenseViewModel
 
-    private var monthFormatter: DateFormatter {
+    private var monthText: String {
         let f = DateFormatter()
         f.dateFormat = "yyyy 年 M 月"
         f.locale = Locale(identifier: "zh_TW")
-        return f
+        return f.string(from: viewModel.selectedMonth)
+    }
+
+    private var isCurrentMonth: Bool {
+        Calendar.current.isDate(viewModel.selectedMonth, equalTo: Date(), toGranularity: .month)
     }
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 18) {
             HStack {
-                Button { viewModel.changeMonth(by: -1) } label: {
-                    Image(systemName: "chevron.left.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(.indigo.opacity(0.7))
+                Button { withAnimation(.spring(response: 0.35)) { viewModel.changeMonth(by: -1) } } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(AppTheme.primary)
+                        .frame(width: 34, height: 34)
+                        .background(AppTheme.primaryLight)
+                        .clipShape(Circle())
                 }
                 Spacer()
-                Text(monthFormatter.string(from: viewModel.selectedMonth))
-                    .font(.headline)
-                    .foregroundColor(.secondary)
+                // 月份標題 + 回到本月按鈕
+                VStack(spacing: 4) {
+                    Text(monthText)
+                        .font(.system(.subheadline, design: .rounded))
+                        .fontWeight(.semibold)
+                        .foregroundColor(AppTheme.textSecondary)
+                    if !isCurrentMonth {
+                        Button {
+                            withAnimation(.spring(response: 0.35)) { viewModel.goToCurrentMonth() }
+                        } label: {
+                            HStack(spacing: 3) {
+                                Image(systemName: "arrow.uturn.right")
+                                    .font(.system(size: 10, weight: .bold))
+                                Text("回到本月")
+                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            }
+                            .foregroundColor(AppTheme.primary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(AppTheme.primaryLight)
+                            .clipShape(Capsule())
+                        }
+                        .transition(.scale.combined(with: .opacity))
+                    }
+                }
                 Spacer()
-                Button { viewModel.changeMonth(by: 1) } label: {
-                    Image(systemName: "chevron.right.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(.indigo.opacity(0.7))
+                Button { withAnimation(.spring(response: 0.35)) { viewModel.changeMonth(by: 1) } } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(AppTheme.primary)
+                        .frame(width: 34, height: 34)
+                        .background(AppTheme.pinkLight)
+                        .clipShape(Circle())
                 }
                 .disabled(Calendar.current.isDate(viewModel.selectedMonth, equalTo: Date(), toGranularity: .month))
                 .opacity(Calendar.current.isDate(viewModel.selectedMonth, equalTo: Date(), toGranularity: .month) ? 0.3 : 1)
             }
 
-            Text(formatAmount(viewModel.currentMonthTotal))
-                .font(.system(size: 42, weight: .bold, design: .rounded))
-                .foregroundColor(.primary)
+            VStack(spacing: 4) {
+                Text("本月支出")
+                    .font(.caption)
+                    .foregroundColor(AppTheme.textSecondary)
+                Text(formatAmount(viewModel.currentMonthTotal))
+                    .font(.system(size: 46, weight: .bold, design: .rounded))
+                    .foregroundColor(AppTheme.textPrimary)
+            }
 
             let prevTotal = viewModel.previousMonthTotal()
             if prevTotal > 0 {
@@ -84,16 +136,19 @@ struct MonthSummaryCard: View {
                 let pct  = abs(diff) / prevTotal * 100
                 HStack(spacing: 4) {
                     Image(systemName: diff >= 0 ? "arrow.up.right" : "arrow.down.right")
+                        .font(.caption2)
                     Text(String(format: "較上月 %.1f%%", pct))
+                        .font(.caption)
                 }
-                .font(.caption)
-                .foregroundColor(diff >= 0 ? .red : .green)
+                .foregroundColor(diff >= 0 ? .red.opacity(0.8) : AppTheme.mint)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
+                .background((diff >= 0 ? Color.red : AppTheme.mint).opacity(0.10))
+                .clipShape(Capsule())
             }
         }
-        .padding()
-        .background(Color(.systemBackground))
-        .cornerRadius(16)
-        .shadow(color: .black.opacity(0.06), radius: 10, y: 4)
+        .padding(20)
+        .cuteCard()
     }
 
     private func formatAmount(_ v: Double) -> String {
@@ -116,12 +171,12 @@ struct CategorySummaryRow: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 ForEach(usedCategories) { cat in
                     CategoryChip(
                         category: cat,
-                        amount: viewModel.total(for: cat),
-                        pct: viewModel.percentage(for: cat)
+                        amount:   viewModel.total(for: cat),
+                        pct:      viewModel.percentage(for: cat)
                     )
                 }
             }
@@ -138,24 +193,22 @@ struct CategoryChip: View {
         VStack(spacing: 6) {
             ZStack {
                 Circle()
-                    .fill(category.color.opacity(0.2))
-                    .frame(width: 44, height: 44)
+                    .fill(category.color.opacity(0.15))
+                    .frame(width: 48, height: 48)
                 Text(category.emoji)
                     .font(.title3)
             }
             Text(category.rawValue)
                 .font(.caption2)
-                .foregroundColor(.secondary)
+                .foregroundColor(AppTheme.textSecondary)
             Text("NT$\(Int(amount))")
                 .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundColor(.primary)
+                .fontWeight(.bold)
+                .foregroundColor(AppTheme.textPrimary)
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 12)
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.05), radius: 6, y: 2)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
+        .cuteRow()
     }
 }
 
@@ -168,7 +221,8 @@ struct RecentExpensesList: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("最近記錄")
-                .font(.headline)
+                .font(.system(.headline, design: .rounded))
+                .foregroundColor(AppTheme.textPrimary)
                 .padding(.horizontal, 4)
 
             if viewModel.currentMonthExpenses.isEmpty {
@@ -186,64 +240,60 @@ struct RecentExpensesList: View {
 struct ExpenseRow: View {
     @EnvironmentObject var viewModel: ExpenseViewModel
     let expense: Expense
-    @State private var showDeleteConfirm = false
 
     var body: some View {
         HStack(spacing: 14) {
             ZStack {
-                RoundedRectangle(cornerRadius: 10)
+                Circle()
                     .fill(expense.category.color.opacity(0.15))
-                    .frame(width: 44, height: 44)
+                    .frame(width: 48, height: 48)
                 Text(expense.category.emoji)
                     .font(.title3)
             }
-
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(expense.note.isEmpty ? expense.category.rawValue : expense.note)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+                    .font(.system(.subheadline, design: .rounded))
+                    .fontWeight(.semibold)
+                    .foregroundColor(AppTheme.textPrimary)
                     .lineLimit(1)
                 Text(expense.formattedDate)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(AppTheme.textSecondary)
             }
-
             Spacer()
-
             Text(expense.formattedAmount)
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundColor(.primary)
+                .font(.system(.subheadline, design: .rounded))
+                .fontWeight(.bold)
+                .foregroundColor(AppTheme.textPrimary)
         }
-        .padding(12)
-        .background(Color(.systemBackground))
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.04), radius: 6, y: 2)
+        .padding(14)
+        .cuteRow()
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 viewModel.delete(expense)
             } label: {
                 Label("刪除", systemImage: "trash")
             }
+            .tint(AppTheme.pink)
         }
     }
 }
 
 struct EmptyStateView: View {
     var body: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "tray")
-                .font(.system(size: 44))
-                .foregroundColor(.secondary.opacity(0.5))
-            Text("本月尚無記錄")
-                .foregroundColor(.secondary)
-                .font(.subheadline)
-            Text("點下方＋按鈕開始記帳")
-                .foregroundColor(.secondary.opacity(0.7))
+        VStack(spacing: 14) {
+            Text("💸")
+                .font(.system(size: 56))
+            Text("本月還沒有記錄")
+                .font(.system(.subheadline, design: .rounded))
+                .fontWeight(.semibold)
+                .foregroundColor(AppTheme.textSecondary)
+            Text("點下方 ＋ 開始記帳吧！")
                 .font(.caption)
+                .foregroundColor(AppTheme.textSecondary.opacity(0.7))
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
+        .padding(.vertical, 44)
     }
 }
 
@@ -262,17 +312,23 @@ struct ExpenseDetailView: View {
                 Section {
                     HStack {
                         Spacer()
-                        VStack(spacing: 8) {
-                            Text(expense.category.emoji)
-                                .font(.system(size: 56))
+                        VStack(spacing: 10) {
+                            ZStack {
+                                Circle()
+                                    .fill(expense.category.color.opacity(0.15))
+                                    .frame(width: 80, height: 80)
+                                Text(expense.category.emoji)
+                                    .font(.system(size: 40))
+                            }
                             Text(expense.formattedAmount)
                                 .font(.system(size: 32, weight: .bold, design: .rounded))
+                                .foregroundColor(AppTheme.textPrimary)
                         }
                         Spacer()
                     }
                     .padding()
                 }
-                .listRowBackground(expense.category.color.opacity(0.1))
+                .listRowBackground(expense.category.color.opacity(0.08))
 
                 Section("詳細資訊") {
                     LabeledContent("分類", value: "\(expense.category.emoji) \(expense.category.rawValue)")
@@ -286,7 +342,7 @@ struct ExpenseDetailView: View {
                         Image(uiImage: uiImage)
                             .resizable()
                             .scaledToFit()
-                            .cornerRadius(8)
+                            .cornerRadius(12)
                     }
                 }
 
@@ -306,10 +362,10 @@ struct ExpenseDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("關閉") { dismiss() }
+                    Button("關閉") { dismiss() }.foregroundColor(AppTheme.pink)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("編輯") { showEdit = true }
+                    Button("編輯") { showEdit = true }.foregroundColor(AppTheme.pink)
                 }
             }
             .confirmationDialog("確認刪除", isPresented: $showDeleteConfirm) {

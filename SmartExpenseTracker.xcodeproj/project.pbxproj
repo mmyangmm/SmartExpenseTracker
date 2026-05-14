@@ -20,6 +20,7 @@
 		11E8E79B2FA22DC400A53109 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E8E78A2FA22DC400A53109 /* HomeView.swift */; };
 		11E8E79C2FA22DC400A53109 /* ExpenseViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E8E7872FA22DC400A53109 /* ExpenseViewModel.swift */; };
 		11E8E79D2FA22DC400A53109 /* ReceiptScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E8E78C2FA22DC400A53109 /* ReceiptScannerView.swift */; };
+		11E8E79E2FA22DC400A53109 /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E8E79F2FA22DC400A53109 /* AppTheme.swift */; };
 		/* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -56,6 +57,7 @@
 		11E8E78D2FA22DC400A53109 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		11E8E78E2FA22DC400A53109 /* StatisticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsView.swift; sourceTree = "<group>"; };
 		11E8E78F2FA22DC400A53109 /* VoiceInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInputView.swift; sourceTree = "<group>"; };
+		11E8E79F2FA22DC400A53109 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
 		/* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -163,6 +165,7 @@
 		11E8E7902FA22DC400A53109 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				11E8E79F2FA22DC400A53109 /* AppTheme.swift */,
 				11E8E7892FA22DC400A53109 /* ContentView.swift */,
 				11E8E78A2FA22DC400A53109 /* HomeView.swift */,
 				11E8E78B2FA22DC400A53109 /* QuickAddView.swift */,
@@ -331,6 +334,7 @@
 				11E8E79B2FA22DC400A53109 /* HomeView.swift in Sources */,
 				11E8E79C2FA22DC400A53109 /* ExpenseViewModel.swift in Sources */,
 				11E8E79D2FA22DC400A53109 /* ReceiptScannerView.swift in Sources */,
+				11E8E79E2FA22DC400A53109 /* AppTheme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

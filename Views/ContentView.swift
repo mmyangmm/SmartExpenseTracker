@@ -11,27 +11,24 @@ struct ContentView: View {
                 HomeView()
                     .tabItem { Label("首頁", systemImage: "house.fill") }
                     .tag(0)
-
                 StatisticsView()
                     .tabItem { Label("統計", systemImage: "chart.pie.fill") }
                     .tag(1)
-
                 SettingsView()
                     .tabItem { Label("設定", systemImage: "gearshape.fill") }
                     .tag(2)
             }
-            .accentColor(.indigo)
+            .accentColor(AppTheme.pink)
 
-            // 懸浮記帳按鈕
             if selectedTab == 0 {
                 Button { showQuickAdd = true } label: {
                     ZStack {
                         Circle()
-                            .fill(Color.indigo)
+                            .fill(AppTheme.pinkGradient)
                             .frame(width: 64, height: 64)
-                            .shadow(color: Color.indigo.opacity(0.4), radius: 8, y: 4)
+                            .shadow(color: AppTheme.pink.opacity(0.40), radius: 12, y: 6)
                         Image(systemName: "plus")
-                            .font(.system(size: 28, weight: .semibold))
+                            .font(.system(size: 26, weight: .bold))
                             .foregroundColor(.white)
                     }
                 }

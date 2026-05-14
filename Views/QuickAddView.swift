@@ -8,13 +8,14 @@ struct QuickAddView: View {
     @Binding var isPresented: Bool
     var existingExpense: Expense? = nil
 
-    @State private var amountText:       String          = ""
-    @State private var selectedCategory: ExpenseCategory = .food
-    @State private var note:             String          = ""
-    @State private var date:             Date            = Date()
-    @State private var showDatePicker:   Bool            = false
+    @State private var amountText:        String          = ""
+    @State private var selectedCategory:  ExpenseCategory = .food
+    @State private var note:              String          = ""
+    @State private var date:              Date            = Date()
+    @State private var showDatePicker:    Bool            = false
     @State private var showReceiptCamera: Bool            = false
-    @State private var isOCRScanning:    Bool            = false
+    @State private var isOCRScanning:     Bool            = false
+    @State private var isIncome:          Bool            = false
 
     @StateObject private var speechService = SpeechService()
 
@@ -25,8 +26,28 @@ struct QuickAddView: View {
             VStack(spacing: 0) {
                 ScrollView {
                     VStack(spacing: 14) {
-                        AmountDisplaySection(amountText: amountText)
-                        CategoryPickerSection(selectedCategory: $selectedCategory)
+                        // 支出 / 收入 切換
+                        Picker("", selection: $isIncome) {
+                            Text("支出").tag(false)
+                            Text("收入").tag(true)
+                        }
+                        .pickerStyle(.segmented)
+                        .padding(.horizontal, 4)
+                        .onChange(of: isIncome) { income in
+                            // 切換類型時自動切換到對應的預設分類
+                            if income {
+                                if !selectedCategory.isIncomeCategory {
+                                    selectedCategory = .salary
+                                }
+                            } else {
+                                if selectedCategory.isIncomeCategory {
+                                    selectedCategory = .food
+                                }
+                            }
+                        }
+
+                        AmountDisplaySection(amountText: amountText, isIncome: isIncome)
+                        CategoryPickerSection(selectedCategory: $selectedCategory, isIncome: isIncome)
                         NoteSection(note: $note)
                         DateSection(date: $date, showPicker: $showDatePicker)
                     }
@@ -66,6 +87,7 @@ struct QuickAddView: View {
                     selectedCategory = e.category
                     note             = e.note
                     date             = e.date
+                    isIncome         = e.isIncome
                 }
                 Task {
                     if speechService.authStatus == .notDetermined {
@@ -103,11 +125,13 @@ struct QuickAddView: View {
         if let existing = existingExpense {
             let updated = Expense(
                 id: existing.id, amount: amount, category: selectedCategory,
-                note: note, date: date, receiptImageData: existing.receiptImageData
+                note: note, date: date, isIncome: isIncome,
+                receiptImageData: existing.receiptImageData
             )
             viewModel.update(updated)
         } else {
-            viewModel.add(Expense(amount: amount, category: selectedCategory, note: note, date: date))
+            viewModel.add(Expense(amount: amount, category: selectedCategory,
+                                  note: note, date: date, isIncome: isIncome))
         }
         isPresented = false
     }
@@ -191,15 +215,25 @@ struct QuickAddView: View {
 
 struct AmountDisplaySection: View {
     let amountText: String
+    var isIncome: Bool = false
+
+    private var activeColor: Color {
+        isIncome ? Color(hex: "34C759") : AppTheme.primary
+    }
 
     var body: some View {
         VStack(spacing: 4) {
-            Text("NT$")
-                .font(.system(.title3, design: .rounded))
-                .foregroundColor(AppTheme.textSecondary)
+            HStack(spacing: 6) {
+                Image(systemName: isIncome ? "plus.circle.fill" : "minus.circle.fill")
+                    .foregroundColor(activeColor)
+                    .font(.caption)
+                Text("NT$")
+                    .font(.system(.title3, design: .rounded))
+                    .foregroundColor(AppTheme.textSecondary)
+            }
             Text(amountText.isEmpty ? "0" : amountText)
                 .font(.system(size: 58, weight: .bold, design: .rounded))
-                .foregroundColor(amountText.isEmpty ? AppTheme.border : AppTheme.textPrimary)
+                .foregroundColor(amountText.isEmpty ? AppTheme.border : activeColor)
                 .minimumScaleFactor(0.5)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity)
@@ -421,7 +455,12 @@ struct ActionKeyButton: View {
 
 struct CategoryPickerSection: View {
     @Binding var selectedCategory: ExpenseCategory
+    var isIncome: Bool = false
     let columns = [GridItem(.adaptive(minimum: 70), spacing: 10)]
+
+    private var categories: [ExpenseCategory] {
+        ExpenseCategory.allCases.filter { $0.isIncomeCategory == isIncome }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -432,7 +471,7 @@ struct CategoryPickerSection: View {
                 .padding(.horizontal, 4)
 
             LazyVGrid(columns: columns, spacing: 10) {
-                ForEach(ExpenseCategory.allCases) { cat in
+                ForEach(categories) { cat in
                     Button { selectedCategory = cat } label: {
                         VStack(spacing: 6) {
                             ZStack {

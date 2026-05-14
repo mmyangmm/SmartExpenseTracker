@@ -5,6 +5,7 @@ import CloudKit
 // MARK: - Category
 
 enum ExpenseCategory: String, CaseIterable, Codable, Identifiable {
+    // ── 支出分類 ──────────────────────────────────────────────────
     case food          = "餐飲"
     case transport     = "交通"
     case shopping      = "購物"
@@ -12,8 +13,21 @@ enum ExpenseCategory: String, CaseIterable, Codable, Identifiable {
     case medical       = "醫療"
     case home          = "居家"
     case other         = "其他"
+    // ── 收入分類 ──────────────────────────────────────────────────
+    case salary        = "薪資"
+    case bonus         = "獎金"
+    case partTime      = "兼職"
+    case investment    = "投資"
+    case incomeOther   = "其他收入"
 
     var id: String { rawValue }
+
+    var isIncomeCategory: Bool {
+        switch self {
+        case .salary, .bonus, .partTime, .investment, .incomeOther: return true
+        default: return false
+        }
+    }
 
     var emoji: String {
         switch self {
@@ -24,6 +38,11 @@ enum ExpenseCategory: String, CaseIterable, Codable, Identifiable {
         case .medical:       return "💊"
         case .home:          return "🏠"
         case .other:         return "📦"
+        case .salary:        return "💰"
+        case .bonus:         return "🎁"
+        case .partTime:      return "💼"
+        case .investment:    return "📈"
+        case .incomeOther:   return "💵"
         }
     }
 
@@ -36,6 +55,11 @@ enum ExpenseCategory: String, CaseIterable, Codable, Identifiable {
         case .medical:       return Color(hex: "FF9FF3")
         case .home:          return Color(hex: "FFEAA7")
         case .other:         return Color(hex: "B2BEC3")
+        case .salary:        return Color(hex: "34C759")
+        case .bonus:         return Color(hex: "30D158")
+        case .partTime:      return Color(hex: "5AC8FA")
+        case .investment:    return Color(hex: "AF52DE")
+        case .incomeOther:   return Color(hex: "9ACD32")
         }
     }
 
@@ -63,6 +87,16 @@ enum ExpenseCategory: String, CaseIterable, Codable, Identifiable {
                     "網路","瓦斯","保險","管理費","電費","水費"]
         case .other:
             return []
+        case .salary:
+            return ["薪水","薪資","月薪","工資","底薪","發薪","入帳","salary"]
+        case .bonus:
+            return ["獎金","年終","績效","紅包","禮金","bonus"]
+        case .partTime:
+            return ["兼職","打工","接案","freelance","外快","副業","稿費"]
+        case .investment:
+            return ["股票","股利","投資","基金","利息","配息","dividend","利潤","收益"]
+        case .incomeOther:
+            return []
         }
     }
 }
@@ -75,6 +109,7 @@ struct Expense: Identifiable, Codable {
     var category: ExpenseCategory
     var note: String
     var date: Date
+    var isIncome: Bool
     var receiptImageData: Data?
     var cloudKitRecordName: String?
 
@@ -84,6 +119,7 @@ struct Expense: Identifiable, Codable {
         category: ExpenseCategory,
         note: String = "",
         date: Date = Date(),
+        isIncome: Bool = false,
         receiptImageData: Data? = nil
     ) {
         self.id = id
@@ -91,7 +127,24 @@ struct Expense: Identifiable, Codable {
         self.category = category
         self.note = note
         self.date = date
+        self.isIncome = isIncome
         self.receiptImageData = receiptImageData
+    }
+
+    // Backward-compatible decoding (old records have no isIncome field)
+    enum CodingKeys: String, CodingKey {
+        case id, amount, category, note, date, isIncome, receiptImageData, cloudKitRecordName
+    }
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id               = try c.decode(String.self,           forKey: .id)
+        amount           = try c.decode(Double.self,           forKey: .amount)
+        category         = try c.decode(ExpenseCategory.self,  forKey: .category)
+        note             = try c.decode(String.self,           forKey: .note)
+        date             = try c.decode(Date.self,             forKey: .date)
+        isIncome         = (try? c.decode(Bool.self,           forKey: .isIncome)) ?? false
+        receiptImageData = try? c.decode(Data.self,            forKey: .receiptImageData)
+        cloudKitRecordName = try? c.decode(String.self,        forKey: .cloudKitRecordName)
     }
 
     var formattedAmount: String {
@@ -124,6 +177,7 @@ extension Expense {
         record["category"] = category.rawValue as CKRecordValue
         record["note"]     = note as CKRecordValue
         record["date"]     = date as CKRecordValue
+        record["isIncome"] = (isIncome ? 1 : 0) as CKRecordValue
         return record
     }
 
@@ -136,12 +190,14 @@ extension Expense {
             let date        = record["date"] as? Date
         else { return nil }
 
-    var expense = Expense(
+        let isIncome = (record["isIncome"] as? Int64 ?? 0) != 0
+        var expense = Expense(
             id: record.recordID.recordName,
             amount: amount,
             category: category,
             note: note,
-            date: date
+            date: date,
+            isIncome: isIncome
         )
         expense.cloudKitRecordName = record.recordID.recordName
         return expense

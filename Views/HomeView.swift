@@ -121,23 +121,70 @@ struct MonthSummaryCard: View {
                 .opacity(Calendar.current.isDate(viewModel.selectedMonth, equalTo: Date(), toGranularity: .month) ? 0.3 : 1)
             }
 
-            VStack(spacing: 4) {
-                Text("本月支出")
-                    .font(.caption)
-                    .foregroundColor(AppTheme.textSecondary)
-                Text(formatAmount(viewModel.currentMonthTotal))
-                    .font(.system(size: 46, weight: .bold, design: .rounded))
-                    .foregroundColor(AppTheme.textPrimary)
+            // ── 支出 / 收入 ─────────────────────────────────────
+            HStack(spacing: 0) {
+                // 支出
+                VStack(spacing: 5) {
+                    HStack(spacing: 4) {
+                        Circle().fill(Color(hex: "FF6B6B")).frame(width: 8, height: 8)
+                        Text("支出")
+                            .font(.caption)
+                            .foregroundColor(AppTheme.textSecondary)
+                    }
+                    Text(formatAmount(viewModel.currentMonthExpenseTotal))
+                        .font(.system(size: 26, weight: .bold, design: .rounded))
+                        .foregroundColor(AppTheme.textPrimary)
+                        .minimumScaleFactor(0.7)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity)
+
+                Rectangle()
+                    .fill(AppTheme.border)
+                    .frame(width: 1, height: 44)
+
+                // 收入
+                VStack(spacing: 5) {
+                    HStack(spacing: 4) {
+                        Circle().fill(Color(hex: "34C759")).frame(width: 8, height: 8)
+                        Text("收入")
+                            .font(.caption)
+                            .foregroundColor(AppTheme.textSecondary)
+                    }
+                    Text(formatAmount(viewModel.currentMonthIncomeTotal))
+                        .font(.system(size: 26, weight: .bold, design: .rounded))
+                        .foregroundColor(Color(hex: "34C759"))
+                        .minimumScaleFactor(0.7)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity)
             }
 
+            // ── 結餘 ────────────────────────────────────────────
+            let balance = viewModel.currentMonthBalance
+            HStack {
+                Text("結餘")
+                    .font(.system(.subheadline, design: .rounded))
+                    .foregroundColor(AppTheme.textSecondary)
+                Spacer()
+                Text(formatBalance(balance))
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .foregroundColor(balance >= 0 ? Color(hex: "34C759") : Color(hex: "FF3B30"))
+            }
+            .padding(.horizontal, 6)
+            .padding(.vertical, 10)
+            .background((balance >= 0 ? Color(hex: "34C759") : Color(hex: "FF3B30")).opacity(0.08))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            // ── 與上月支出比較 ───────────────────────────────────
             let prevTotal = viewModel.previousMonthTotal()
             if prevTotal > 0 {
-                let diff = viewModel.currentMonthTotal - prevTotal
+                let diff = viewModel.currentMonthExpenseTotal - prevTotal
                 let pct  = abs(diff) / prevTotal * 100
                 HStack(spacing: 4) {
                     Image(systemName: diff >= 0 ? "arrow.up.right" : "arrow.down.right")
                         .font(.caption2)
-                    Text(String(format: "較上月 %.1f%%", pct))
+                    Text(String(format: "支出較上月 %.1f%%", pct))
                         .font(.caption)
                 }
                 .foregroundColor(diff >= 0 ? .red.opacity(0.8) : AppTheme.mint)
@@ -158,6 +205,15 @@ struct MonthSummaryCard: View {
         f.maximumFractionDigits = 0
         return f.string(from: NSNumber(value: v)) ?? "NT$\(Int(v))"
     }
+
+    private func formatBalance(_ v: Double) -> String {
+        let f = NumberFormatter()
+        f.numberStyle = .currency
+        f.currencySymbol = "NT$"
+        f.maximumFractionDigits = 0
+        let prefix = v > 0 ? "+" : ""
+        return prefix + (f.string(from: NSNumber(value: v)) ?? "NT$\(Int(v))")
+    }
 }
 
 // MARK: - Category Summary Row
@@ -166,7 +222,7 @@ struct CategorySummaryRow: View {
     @EnvironmentObject var viewModel: ExpenseViewModel
 
     var usedCategories: [ExpenseCategory] {
-        ExpenseCategory.allCases.filter { viewModel.total(for: $0) > 0 }
+        ExpenseCategory.allCases.filter { !$0.isIncomeCategory && viewModel.total(for: $0) > 0 }
     }
 
     var body: some View {
@@ -261,10 +317,10 @@ struct ExpenseRow: View {
                     .foregroundColor(AppTheme.textSecondary)
             }
             Spacer()
-            Text(expense.formattedAmount)
+            Text((expense.isIncome ? "+" : "") + expense.formattedAmount)
                 .font(.system(.subheadline, design: .rounded))
                 .fontWeight(.bold)
-                .foregroundColor(AppTheme.textPrimary)
+                .foregroundColor(expense.isIncome ? Color(hex: "34C759") : AppTheme.textPrimary)
         }
         .padding(14)
         .cuteRow()

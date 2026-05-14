@@ -40,6 +40,7 @@ class ExpenseViewModel: ObservableObject {
 
     // MARK: - Derived Data
 
+    /// 本月所有記錄（支出＋收入），依日期排序
     var currentMonthExpenses: [Expense] {
         let cal = Calendar.current
         return expenses.filter {
@@ -47,25 +48,31 @@ class ExpenseViewModel: ObservableObject {
         }.sorted { $0.date > $1.date }
     }
 
-    var currentMonthTotal: Double {
-        currentMonthExpenses.reduce(0) { $0 + $1.amount }
-    }
+    var currentMonthExpenseItems: [Expense] { currentMonthExpenses.filter { !$0.isIncome } }
+    var currentMonthIncomeItems:  [Expense] { currentMonthExpenses.filter {  $0.isIncome } }
+
+    var currentMonthExpenseTotal: Double { currentMonthExpenseItems.reduce(0) { $0 + $1.amount } }
+    var currentMonthIncomeTotal:  Double { currentMonthIncomeItems.reduce(0)  { $0 + $1.amount } }
+    var currentMonthBalance:      Double { currentMonthIncomeTotal - currentMonthExpenseTotal }
+
+    /// 向下相容：currentMonthTotal 維持指支出合計
+    var currentMonthTotal: Double { currentMonthExpenseTotal }
 
     func total(for category: ExpenseCategory) -> Double {
-        currentMonthExpenses
+        currentMonthExpenseItems
             .filter { $0.category == category }
             .reduce(0) { $0 + $1.amount }
     }
 
     func percentage(for category: ExpenseCategory) -> Double {
-        guard currentMonthTotal > 0 else { return 0 }
-        return total(for: category) / currentMonthTotal
+        guard currentMonthExpenseTotal > 0 else { return 0 }
+        return total(for: category) / currentMonthExpenseTotal
     }
 
     /// 每日支出加總，用於折線圖
     func dailyTotals() -> [(date: Date, amount: Double)] {
         let cal = Calendar.current
-        let grouped = Dictionary(grouping: currentMonthExpenses) {
+        let grouped = Dictionary(grouping: currentMonthExpenseItems) {
             cal.startOfDay(for: $0.date)
         }
         return grouped
@@ -73,12 +80,12 @@ class ExpenseViewModel: ObservableObject {
             .sorted { $0.date < $1.date }
     }
 
-    /// 上個月同期比較
+    /// 上個月同期支出比較
     func previousMonthTotal() -> Double {
         guard let prevMonth = Calendar.current.date(byAdding: .month, value: -1, to: selectedMonth) else { return 0 }
         let cal = Calendar.current
         return expenses
-            .filter { cal.isDate($0.date, equalTo: prevMonth, toGranularity: .month) }
+            .filter { !$0.isIncome && cal.isDate($0.date, equalTo: prevMonth, toGranularity: .month) }
             .reduce(0) { $0 + $1.amount }
     }
 

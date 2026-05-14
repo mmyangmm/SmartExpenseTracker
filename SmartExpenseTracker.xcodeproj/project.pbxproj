@@ -6,6 +6,22 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		11E8E7912FA22DC400A53109 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E8E7892FA22DC400A53109 /* ContentView.swift */; };
+		11E8E7922FA22DC400A53109 /* SpeechService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E8E7852FA22DC400A53109 /* SpeechService.swift */; };
+		11E8E7932FA22DC400A53109 /* ExpenseTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E8E77F2FA22DC400A53109 /* ExpenseTrackerApp.swift */; };
+		11E8E7942FA22DC400A53109 /* CloudKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E8E7832FA22DC400A53109 /* CloudKitService.swift */; };
+		11E8E7952FA22DC400A53109 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E8E7842FA22DC400A53109 /* NotificationService.swift */; };
+		11E8E7962FA22DC400A53109 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E8E78D2FA22DC400A53109 /* SettingsView.swift */; };
+		11E8E7972FA22DC400A53109 /* Expense.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E8E7812FA22DC400A53109 /* Expense.swift */; };
+		11E8E7982FA22DC400A53109 /* StatisticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E8E78E2FA22DC400A53109 /* StatisticsView.swift */; };
+		11E8E7992FA22DC400A53109 /* QuickAddView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E8E78B2FA22DC400A53109 /* QuickAddView.swift */; };
+		11E8E79A2FA22DC400A53109 /* VoiceInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E8E78F2FA22DC400A53109 /* VoiceInputView.swift */; };
+		11E8E79B2FA22DC400A53109 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E8E78A2FA22DC400A53109 /* HomeView.swift */; };
+		11E8E79C2FA22DC400A53109 /* ExpenseViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E8E7872FA22DC400A53109 /* ExpenseViewModel.swift */; };
+		11E8E79D2FA22DC400A53109 /* ReceiptScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E8E78C2FA22DC400A53109 /* ReceiptScannerView.swift */; };
+		/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		11E8E7632FA21BE900A53109 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,7 +43,20 @@
 		11E8E7552FA21BE800A53109 /* SmartExpenseTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SmartExpenseTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		11E8E7622FA21BE900A53109 /* SmartExpenseTrackerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SmartExpenseTrackerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		11E8E76C2FA21BE900A53109 /* SmartExpenseTrackerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SmartExpenseTrackerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-/* End PBXFileReference section */
+		11E8E77F2FA22DC400A53109 /* ExpenseTrackerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpenseTrackerApp.swift; sourceTree = "<group>"; };
+		11E8E7812FA22DC400A53109 /* Expense.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Expense.swift; sourceTree = "<group>"; };
+		11E8E7832FA22DC400A53109 /* CloudKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitService.swift; sourceTree = "<group>"; };
+		11E8E7842FA22DC400A53109 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
+		11E8E7852FA22DC400A53109 /* SpeechService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechService.swift; sourceTree = "<group>"; };
+		11E8E7872FA22DC400A53109 /* ExpenseViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExpenseViewModel.swift; sourceTree = "<group>"; };
+		11E8E7892FA22DC400A53109 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		11E8E78A2FA22DC400A53109 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		11E8E78B2FA22DC400A53109 /* QuickAddView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAddView.swift; sourceTree = "<group>"; };
+		11E8E78C2FA22DC400A53109 /* ReceiptScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiptScannerView.swift; sourceTree = "<group>"; };
+		11E8E78D2FA22DC400A53109 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		11E8E78E2FA22DC400A53109 /* StatisticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsView.swift; sourceTree = "<group>"; };
+		11E8E78F2FA22DC400A53109 /* VoiceInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInputView.swift; sourceTree = "<group>"; };
+		/* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		11E8E7572FA21BE800A53109 /* SmartExpenseTracker */ = {
@@ -79,6 +108,11 @@
 				11E8E7652FA21BE900A53109 /* SmartExpenseTrackerTests */,
 				11E8E76F2FA21BE900A53109 /* SmartExpenseTrackerUITests */,
 				11E8E7562FA21BE800A53109 /* Products */,
+				11E8E7802FA22DC400A53109 /* App */,
+				11E8E7822FA22DC400A53109 /* Models */,
+				11E8E7862FA22DC400A53109 /* Services */,
+				11E8E7882FA22DC400A53109 /* ViewModels */,
+				11E8E7902FA22DC400A53109 /* Views */,
 			);
 			sourceTree = "<group>";
 		};
@@ -90,6 +124,54 @@
 				11E8E76C2FA21BE900A53109 /* SmartExpenseTrackerUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		11E8E7802FA22DC400A53109 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				11E8E77F2FA22DC400A53109 /* ExpenseTrackerApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		11E8E7822FA22DC400A53109 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				11E8E7812FA22DC400A53109 /* Expense.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		11E8E7862FA22DC400A53109 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				11E8E7832FA22DC400A53109 /* CloudKitService.swift */,
+				11E8E7842FA22DC400A53109 /* NotificationService.swift */,
+				11E8E7852FA22DC400A53109 /* SpeechService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		11E8E7882FA22DC400A53109 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				11E8E7872FA22DC400A53109 /* ExpenseViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		11E8E7902FA22DC400A53109 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				11E8E7892FA22DC400A53109 /* ContentView.swift */,
+				11E8E78A2FA22DC400A53109 /* HomeView.swift */,
+				11E8E78B2FA22DC400A53109 /* QuickAddView.swift */,
+				11E8E78C2FA22DC400A53109 /* ReceiptScannerView.swift */,
+				11E8E78D2FA22DC400A53109 /* SettingsView.swift */,
+				11E8E78E2FA22DC400A53109 /* StatisticsView.swift */,
+				11E8E78F2FA22DC400A53109 /* VoiceInputView.swift */,
+			);
+			path = Views;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -236,6 +318,19 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				11E8E7912FA22DC400A53109 /* ContentView.swift in Sources */,
+				11E8E7922FA22DC400A53109 /* SpeechService.swift in Sources */,
+				11E8E7932FA22DC400A53109 /* ExpenseTrackerApp.swift in Sources */,
+				11E8E7942FA22DC400A53109 /* CloudKitService.swift in Sources */,
+				11E8E7952FA22DC400A53109 /* NotificationService.swift in Sources */,
+				11E8E7962FA22DC400A53109 /* SettingsView.swift in Sources */,
+				11E8E7972FA22DC400A53109 /* Expense.swift in Sources */,
+				11E8E7982FA22DC400A53109 /* StatisticsView.swift in Sources */,
+				11E8E7992FA22DC400A53109 /* QuickAddView.swift in Sources */,
+				11E8E79A2FA22DC400A53109 /* VoiceInputView.swift in Sources */,
+				11E8E79B2FA22DC400A53109 /* HomeView.swift in Sources */,
+				11E8E79C2FA22DC400A53109 /* ExpenseViewModel.swift in Sources */,
+				11E8E79D2FA22DC400A53109 /* ReceiptScannerView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -399,7 +494,13 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = UDN4C958LV;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "i記帳";
+				INFOPLIST_KEY_NSCameraUsageDescription = "使用相機拍攝收據自動辨識金額";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "需要麥克風以進行語音記帳功能";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "從相簿選取收據照片以自動辨識金額";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "使用語音辨識自動解析消費金額與分類";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -431,7 +532,13 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = UDN4C958LV;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "i記帳";
+				INFOPLIST_KEY_NSCameraUsageDescription = "使用相機拍攝收據自動辨識金額";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "需要麥克風以進行語音記帳功能";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "從相簿選取收據照片以自動辨識金額";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "使用語音辨識自動解析消費金額與分類";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -461,7 +568,9 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = UDN4C958LV;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "i記帳";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.Felix.SmartExpenseTracker.SmartExpenseTrackerTests;
@@ -483,7 +592,9 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = UDN4C958LV;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "i記帳";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.Felix.SmartExpenseTracker.SmartExpenseTrackerTests;
@@ -504,7 +615,9 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = UDN4C958LV;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "i記帳";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.Felix.SmartExpenseTracker.SmartExpenseTrackerUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -524,7 +637,9 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = UDN4C958LV;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "i記帳";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.Felix.SmartExpenseTracker.SmartExpenseTrackerUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";

@@ -1,17 +1,3 @@
-//
-//  SmartExpenseTrackerApp.swift
-//  SmartExpenseTracker
-//
-//  Created by 楊皓翔 on 2026/4/29.
-//
-
+// This file intentionally left minimal.
+// Entry point is App/ExpenseTrackerApp.swift
 import SwiftUI
-
-@main
-struct SmartExpenseTrackerApp: App {
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
-    }
-}

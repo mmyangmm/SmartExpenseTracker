@@ -216,6 +216,17 @@ struct SettingsView: View {
                     }
                 }
 
+                // MARK: 工具
+                Section {
+                    NavigationLink {
+                        CurrencyConverterView()
+                    } label: {
+                        Label("匯率換算", systemImage: "arrow.left.arrow.right.circle.fill")
+                    }
+                } header: {
+                    Text("💱  工具")
+                }
+
                 // MARK: 資料管理
                 Section {
                     Button { exportData() } label: {

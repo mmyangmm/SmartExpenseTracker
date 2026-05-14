@@ -19,23 +19,25 @@ struct TravelCurrency: Identifiable, Hashable {
         return "\(symbol)\(num)"
     }
 
-    // ── 常用旅遊幣別 ─────────────────────────────────────────
+    // ── 常用旅遊幣別（含台幣） ─────────────────────────────────
     static let all: [TravelCurrency] = [
-        .init(code: "JPY", name: "日圓",        flag: "🇯🇵", symbol: "¥"),
-        .init(code: "USD", name: "美元",        flag: "🇺🇸", symbol: "$"),
-        .init(code: "EUR", name: "歐元",        flag: "🇪🇺", symbol: "€"),
-        .init(code: "GBP", name: "英鎊",        flag: "🇬🇧", symbol: "£"),
-        .init(code: "HKD", name: "港幣",        flag: "🇭🇰", symbol: "HK$"),
-        .init(code: "SGD", name: "新加坡幣",    flag: "🇸🇬", symbol: "S$"),
-        .init(code: "CNY", name: "人民幣",      flag: "🇨🇳", symbol: "¥"),
-        .init(code: "KRW", name: "韓元",        flag: "🇰🇷", symbol: "₩"),
-        .init(code: "THB", name: "泰銖",        flag: "🇹🇭", symbol: "฿"),
-        .init(code: "AUD", name: "澳幣",        flag: "🇦🇺", symbol: "A$"),
-        .init(code: "CAD", name: "加幣",        flag: "🇨🇦", symbol: "C$"),
-        .init(code: "MYR", name: "馬幣",        flag: "🇲🇾", symbol: "RM"),
-        .init(code: "IDR", name: "印尼盾",      flag: "🇮🇩", symbol: "Rp"),
-        .init(code: "PHP", name: "菲律賓披索",  flag: "🇵🇭", symbol: "₱"),
-        .init(code: "VND", name: "越南盾",      flag: "🇻🇳", symbol: "₫"),
+        .init(code: "TWD", name: "新台幣",       flag: "🇹🇼", symbol: "NT$"),
+        .init(code: "JPY", name: "日圓",          flag: "🇯🇵", symbol: "¥"),
+        .init(code: "USD", name: "美元",          flag: "🇺🇸", symbol: "$"),
+        .init(code: "EUR", name: "歐元",          flag: "🇪🇺", symbol: "€"),
+        .init(code: "GBP", name: "英鎊",          flag: "🇬🇧", symbol: "£"),
+        .init(code: "HKD", name: "港幣",          flag: "🇭🇰", symbol: "HK$"),
+        .init(code: "MOP", name: "澳門幣",        flag: "🇲🇴", symbol: "MOP$"),
+        .init(code: "CNY", name: "人民幣",        flag: "🇨🇳", symbol: "¥"),
+        .init(code: "KRW", name: "韓元",          flag: "🇰🇷", symbol: "₩"),
+        .init(code: "SGD", name: "新加坡幣",      flag: "🇸🇬", symbol: "S$"),
+        .init(code: "THB", name: "泰銖",          flag: "🇹🇭", symbol: "฿"),
+        .init(code: "AUD", name: "澳幣",          flag: "🇦🇺", symbol: "A$"),
+        .init(code: "CAD", name: "加幣",          flag: "🇨🇦", symbol: "C$"),
+        .init(code: "MYR", name: "馬幣",          flag: "🇲🇾", symbol: "RM"),
+        .init(code: "IDR", name: "印尼盾",        flag: "🇮🇩", symbol: "Rp"),
+        .init(code: "PHP", name: "菲律賓披索",    flag: "🇵🇭", symbol: "₱"),
+        .init(code: "VND", name: "越南盾",        flag: "🇻🇳", symbol: "₫"),
     ]
 
     static func find(_ code: String) -> TravelCurrency? {

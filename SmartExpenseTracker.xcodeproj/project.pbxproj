@@ -24,6 +24,7 @@
 		AABB00022FA22DC400A53109 /* ExchangeRateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB00012FA22DC400A53109 /* ExchangeRateService.swift */; };
 		AABB00042FA22DC400A53109 /* TravelCurrency.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB00032FA22DC400A53109 /* TravelCurrency.swift */; };
 		AABB00062FA22DC400A53109 /* TravelModeSummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB00052FA22DC400A53109 /* TravelModeSummaryView.swift */; };
+		AABB00082FA22DC400A53109 /* CurrencyConverterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB00072FA22DC400A53109 /* CurrencyConverterView.swift */; };
 		/* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -64,6 +65,7 @@
 		AABB00012FA22DC400A53109 /* ExchangeRateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExchangeRateService.swift; sourceTree = "<group>"; };
 		AABB00032FA22DC400A53109 /* TravelCurrency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelCurrency.swift; sourceTree = "<group>"; };
 		AABB00052FA22DC400A53109 /* TravelModeSummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelModeSummaryView.swift; sourceTree = "<group>"; };
+		AABB00072FA22DC400A53109 /* CurrencyConverterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyConverterView.swift; sourceTree = "<group>"; };
 		/* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -175,6 +177,7 @@
 			children = (
 				11E8E79F2FA22DC400A53109 /* AppTheme.swift */,
 				11E8E7892FA22DC400A53109 /* ContentView.swift */,
+				AABB00072FA22DC400A53109 /* CurrencyConverterView.swift */,
 				11E8E78A2FA22DC400A53109 /* HomeView.swift */,
 				11E8E78B2FA22DC400A53109 /* QuickAddView.swift */,
 				11E8E78C2FA22DC400A53109 /* ReceiptScannerView.swift */,
@@ -347,6 +350,7 @@
 				AABB00022FA22DC400A53109 /* ExchangeRateService.swift in Sources */,
 				AABB00042FA22DC400A53109 /* TravelCurrency.swift in Sources */,
 				AABB00062FA22DC400A53109 /* TravelModeSummaryView.swift in Sources */,
+				AABB00082FA22DC400A53109 /* CurrencyConverterView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

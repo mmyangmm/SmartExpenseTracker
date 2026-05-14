@@ -1,39 +1,16 @@
 import SwiftUI
 
-// MARK: - TWD Custom Icon & Shared Flag View
+// MARK: - Shared Currency Flag View
 
-/// 顯示幣別圖示：TWD 使用自製藍色圓形徽章，其他顯示 emoji 國旗
+/// 顯示幣別國旗 emoji，統一大小
 struct CurrencyFlagView: View {
     let tc:   TravelCurrency
     var size: CGFloat = 32
 
     var body: some View {
-        if tc.code == "TWD" {
-            // 自訂台幣圖示：藍底白字「元」
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(hex: "1565C0"), Color(hex: "1E88E5")],
-                            startPoint: .topLeading,
-                            endPoint:   .bottomTrailing
-                        )
-                    )
-                    .frame(width: size, height: size)
-                // 外圈細環
-                Circle()
-                    .stroke(Color.white.opacity(0.35), lineWidth: size * 0.05)
-                    .frame(width: size * 0.82, height: size * 0.82)
-                Text("元")
-                    .font(.system(size: size * 0.44, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-            }
+        Text(tc.flag)
+            .font(.system(size: size * 0.68))
             .frame(width: size, height: size)
-        } else {
-            Text(tc.flag)
-                .font(.system(size: size * 0.68))
-                .frame(width: size, height: size)
-        }
     }
 }
 
@@ -309,7 +286,7 @@ struct ManageCurrenciesSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                // ── 已選擇（可拖動排序）──────────────────────────
+                // ── 已選擇（可拖動排序、點 − 刪除）────────────────
                 Section {
                     ForEach(selectedOrder, id: \.self) { code in
                         if let tc = TravelCurrency.find(code) {
@@ -320,10 +297,20 @@ struct ManageCurrenciesSheet: View {
                         selectedOrder.move(fromOffsets: from, toOffset: to)
                         persist()
                     }
+                    .onDelete { indexSet in
+                        // 過濾掉基準幣別，且至少保留 2 個
+                        let safe = IndexSet(indexSet.filter {
+                            selectedOrder[$0] != baseCurrency
+                        })
+                        guard !safe.isEmpty,
+                              selectedOrder.count - safe.count >= 2 else { return }
+                        selectedOrder.remove(atOffsets: safe)
+                        persist()
+                    }
                 } header: {
-                    Text("顯示中（拖動 ≡ 調整順序）")
+                    Text("顯示中（− 刪除 ／ ≡ 排序）")
                 } footer: {
-                    Text("至少保留 2 個幣別")
+                    Text("至少保留 2 個幣別；基準幣別不可刪除")
                 }
 
                 // ── 更多幣別 ──────────────────────────────────────
@@ -384,14 +371,6 @@ struct ManageCurrenciesSheet: View {
             Spacer()
         }
         .contentShape(Rectangle())
-        // 左滑移除（基準幣別不可刪）
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            if tc.code != baseCurrency {
-                Button(role: .destructive) { removeCurrency(tc.code) } label: {
-                    Label("移除", systemImage: "minus.circle")
-                }
-            }
-        }
     }
 
     // ── 未選列 ─────────────────────────────────────────────────
@@ -420,12 +399,6 @@ struct ManageCurrenciesSheet: View {
     private func addCurrency(_ code: String) {
         guard !selectedOrder.contains(code) else { return }
         selectedOrder.append(code)
-        persist()
-    }
-
-    private func removeCurrency(_ code: String) {
-        guard selectedOrder.count > 2 else { return }
-        selectedOrder.removeAll { $0 == code }
         persist()
     }
 

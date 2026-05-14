@@ -8,9 +8,6 @@ struct TravelCurrency: Identifiable, Hashable {
 
     var id: String { code }
 
-    /// TWD 使用自訂 icon（無 emoji），其他用 flag 字串
-    var hasCustomIcon: Bool { code == "TWD" }
-
     /// 格式化金額，日圓/韓元/越南盾/印尼盾不顯示小數
     func format(_ amount: Double) -> String {
         let noDecimal = ["JPY","KRW","VND","IDR","TWD"]

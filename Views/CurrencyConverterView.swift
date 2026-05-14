@@ -235,7 +235,7 @@ struct ConverterNumpad: View {
         ["1","2","3"],
         ["4","5","6"],
         ["7","8","9"],
-        [".","0","⌫"],
+        ["C",".","0","⌫"],
     ]
 
     var body: some View {
@@ -245,17 +245,23 @@ struct ConverterNumpad: View {
                     ForEach(row, id: \.self) { key in
                         Button { handleKey(key) } label: {
                             Text(key)
-                                .font(.system(size: 22, weight: .medium, design: .rounded))
+                                .font(.system(size: key == "C" ? 18 : 22,
+                                              weight: key == "C" ? .bold : .medium,
+                                              design: .rounded))
                                 .frame(maxWidth: .infinity, minHeight: 52)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        .fill(key == "⌫"
-                                              ? Color(hex: "FF3B30").opacity(0.1)
-                                              : AppTheme.surface)
+                                        .fill(
+                                            key == "C"  ? Color.orange.opacity(0.15) :
+                                            key == "⌫" ? Color(hex: "FF3B30").opacity(0.1) :
+                                                          AppTheme.surface
+                                        )
                                         .shadow(color: Color.black.opacity(0.04), radius: 3, y: 1)
                                 )
                                 .foregroundColor(
-                                    key == "⌫" ? Color(hex: "FF3B30") : AppTheme.textPrimary
+                                    key == "C"  ? .orange :
+                                    key == "⌫" ? Color(hex: "FF3B30") :
+                                                  AppTheme.textPrimary
                                 )
                         }
                         .buttonStyle(.plain)
@@ -267,6 +273,8 @@ struct ConverterNumpad: View {
 
     private func handleKey(_ key: String) {
         switch key {
+        case "C":
+            text = ""
         case "⌫":
             guard !text.isEmpty else { return }
             text.removeLast()

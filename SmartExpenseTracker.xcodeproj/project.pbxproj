@@ -25,6 +25,10 @@
 		AABB00042FA22DC400A53109 /* TravelCurrency.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB00032FA22DC400A53109 /* TravelCurrency.swift */; };
 		AABB00062FA22DC400A53109 /* TravelModeSummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB00052FA22DC400A53109 /* TravelModeSummaryView.swift */; };
 		AABB00082FA22DC400A53109 /* CurrencyConverterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB00072FA22DC400A53109 /* CurrencyConverterView.swift */; };
+		CCDD00022FA22DC400A53109 /* Invoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD00012FA22DC400A53109 /* Invoice.swift */; };
+		CCDD00042FA22DC400A53109 /* InvoiceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD00032FA22DC400A53109 /* InvoiceService.swift */; };
+		CCDD00062FA22DC400A53109 /* InvoiceWalletView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD00052FA22DC400A53109 /* InvoiceWalletView.swift */; };
+		CCDD00082FA22DC400A53109 /* InvoiceScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDD00072FA22DC400A53109 /* InvoiceScanView.swift */; };
 		/* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -66,6 +70,10 @@
 		AABB00032FA22DC400A53109 /* TravelCurrency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelCurrency.swift; sourceTree = "<group>"; };
 		AABB00052FA22DC400A53109 /* TravelModeSummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelModeSummaryView.swift; sourceTree = "<group>"; };
 		AABB00072FA22DC400A53109 /* CurrencyConverterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyConverterView.swift; sourceTree = "<group>"; };
+		CCDD00012FA22DC400A53109 /* Invoice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Invoice.swift; sourceTree = "<group>"; };
+		CCDD00032FA22DC400A53109 /* InvoiceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceService.swift; sourceTree = "<group>"; };
+		CCDD00052FA22DC400A53109 /* InvoiceWalletView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceWalletView.swift; sourceTree = "<group>"; };
+		CCDD00072FA22DC400A53109 /* InvoiceScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceScanView.swift; sourceTree = "<group>"; };
 		/* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -148,6 +156,7 @@
 			isa = PBXGroup;
 			children = (
 				11E8E7812FA22DC400A53109 /* Expense.swift */,
+				CCDD00012FA22DC400A53109 /* Invoice.swift */,
 				AABB00032FA22DC400A53109 /* TravelCurrency.swift */,
 			);
 			path = Models;
@@ -158,6 +167,7 @@
 			children = (
 				11E8E7832FA22DC400A53109 /* CloudKitService.swift */,
 				AABB00012FA22DC400A53109 /* ExchangeRateService.swift */,
+				CCDD00032FA22DC400A53109 /* InvoiceService.swift */,
 				11E8E7842FA22DC400A53109 /* NotificationService.swift */,
 				11E8E7852FA22DC400A53109 /* SpeechService.swift */,
 			);
@@ -179,6 +189,8 @@
 				11E8E7892FA22DC400A53109 /* ContentView.swift */,
 				AABB00072FA22DC400A53109 /* CurrencyConverterView.swift */,
 				11E8E78A2FA22DC400A53109 /* HomeView.swift */,
+				CCDD00072FA22DC400A53109 /* InvoiceScanView.swift */,
+				CCDD00052FA22DC400A53109 /* InvoiceWalletView.swift */,
 				11E8E78B2FA22DC400A53109 /* QuickAddView.swift */,
 				11E8E78C2FA22DC400A53109 /* ReceiptScannerView.swift */,
 				11E8E78D2FA22DC400A53109 /* SettingsView.swift */,
@@ -351,6 +363,10 @@
 				AABB00042FA22DC400A53109 /* TravelCurrency.swift in Sources */,
 				AABB00062FA22DC400A53109 /* TravelModeSummaryView.swift in Sources */,
 				AABB00082FA22DC400A53109 /* CurrencyConverterView.swift in Sources */,
+				CCDD00022FA22DC400A53109 /* Invoice.swift in Sources */,
+				CCDD00042FA22DC400A53109 /* InvoiceService.swift in Sources */,
+				CCDD00062FA22DC400A53109 /* InvoiceWalletView.swift in Sources */,
+				CCDD00082FA22DC400A53109 /* InvoiceScanView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

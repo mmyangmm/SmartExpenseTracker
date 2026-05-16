@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var viewModel: ExpenseViewModel
+    @EnvironmentObject var invoiceService: InvoiceService
     @State private var showQuickAdd = false
     // @AppStorage 確保主題切換重建 ContentView 時，選中的 tab 不會被重置
     @AppStorage("selectedTab") private var selectedTab: Int = 0
@@ -20,9 +21,12 @@ struct ContentView: View {
                 StatisticsView()
                     .tabItem { Label("統計", systemImage: "chart.pie.fill") }
                     .tag(1)
+                InvoiceWalletView()
+                    .tabItem { Label("發票", systemImage: "doc.text.viewfinder") }
+                    .tag(2)
                 SettingsView()
                     .tabItem { Label("設定", systemImage: "gearshape.fill") }
-                    .tag(2)
+                    .tag(3)
             }
             .accentColor(AppTheme.pink)
 

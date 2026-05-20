@@ -8,6 +8,8 @@ struct InvoiceWalletView: View {
     @State private var showScan = false
     @State private var showLottery = false
     @State private var selectedPeriodForLottery: String? = nil
+    @State private var lotteryWinCount: Int = 0
+    @State private var showWinAlert = false
 
     var body: some View {
         NavigationStack {
@@ -36,10 +38,19 @@ struct InvoiceWalletView: View {
         }
         .sheet(isPresented: $showLottery) {
             LotteryInputSheet(periodId: selectedPeriodForLottery ?? "") { numbers, periodId in
-                invoiceService.applyLottery(numbers: numbers, periodId: periodId)
+                let won = invoiceService.applyLottery(numbers: numbers, periodId: periodId)
                 showLottery = false
+                if won > 0 {
+                    lotteryWinCount = won
+                    showWinAlert = true
+                }
             }
             .environmentObject(invoiceService)
+        }
+        .alert("🎉 恭喜中獎！", isPresented: $showWinAlert) {
+            Button("太棒了！", role: .cancel) {}
+        } message: {
+            Text("您有 \(lotteryWinCount) 張發票中獎，記得在 25 日前至超商或金融機構兌領！")
         }
     }
 
@@ -495,57 +506,77 @@ struct LotteryInputSheet: View {
         fetchError = nil
         defer { isFetching = false }
 
-        let urlStr = "https://invoice.etax.nat.gov.tw/number.html"
-        guard let url = URL(string: urlStr) else {
+        guard let url = URL(string: "https://invoice.etax.nat.gov.tw/") else {
             fetchError = "無效網址"
             return
         }
-
         do {
             let (data, _) = try await URLSession.shared.data(from: url)
             guard let html = String(data: data, encoding: .utf8) else {
                 fetchError = "無法解析網頁"
                 return
             }
-
-            let pattern = "\\b\\d{8}\\b"
-            let regex = try NSRegularExpression(pattern: pattern)
-            let matches = regex.matches(in: html, range: NSRange(html.startIndex..., in: html))
-            let found = matches.compactMap { match -> String? in
-                guard let range = Range(match.range, in: html) else { return nil }
-                return String(html[range])
-            }
-
-            // Remove duplicates, keep order
-            var seen = Set<String>()
-            let unique = found.filter { seen.insert($0).inserted }
-
-            // Fill fields: first = special, second = grand, 3-5 = first prizes, etc.
-            if unique.count >= 1 { special = unique[0] }
-            if unique.count >= 2 { grand = unique[1] }
-            if unique.count >= 3 { first1 = unique[2] }
-            if unique.count >= 4 { first2 = unique[3] }
-            if unique.count >= 5 { first3 = unique[4] }
-
-            // 3-digit additional
-            let pattern3 = "\\b\\d{3}\\b"
-            let regex3 = try NSRegularExpression(pattern: pattern3)
-            let matches3 = regex3.matches(in: html, range: NSRange(html.startIndex..., in: html))
-            let found3 = matches3.compactMap { match -> String? in
-                guard let range = Range(match.range, in: html) else { return nil }
-                return String(html[range])
-            }
-            var seen3 = Set<String>()
-            let unique3 = found3.filter { seen3.insert($0).inserted }
-            if unique3.count >= 1 { add1 = unique3[0] }
-            if unique3.count >= 2 { add2 = unique3[1] }
-            if unique3.count >= 3 { add3 = unique3[2] }
-
-            if unique.isEmpty {
+            let parsed = parsePrizes(from: html)
+            if parsed.special.isEmpty {
                 fetchError = "找不到開獎號碼，請手動輸入"
+                return
             }
+            special = parsed.special
+            grand   = parsed.grand
+            if parsed.first.count >= 1 { first1 = parsed.first[0] }
+            if parsed.first.count >= 2 { first2 = parsed.first[1] }
+            if parsed.first.count >= 3 { first3 = parsed.first[2] }
+            if parsed.additional.count >= 1 { add1 = parsed.additional[0] }
+            if parsed.additional.count >= 2 { add2 = parsed.additional[1] }
+            if parsed.additional.count >= 3 { add3 = parsed.additional[2] }
         } catch {
             fetchError = "查詢失敗：\(error.localizedDescription)"
         }
+    }
+
+    // MARK: - HTML parser
+    // Page has two identical tables (desktop/mobile). We parse row-by-row and stop at first match
+    // per prize type to avoid duplicates.
+    // Key insight: 頭獎 numbers are split across adjacent <span> tags, e.g.
+    //   <span>21677</span><span class="etw-color-red">046</span>
+    // Stripping tags WITHOUT adding spaces joins the digits correctly → "21677046".
+
+    private typealias Prizes = (special: String, grand: String, first: [String], additional: [String])
+
+    private func parsePrizes(from html: String) -> Prizes {
+        var special = "", grand = ""
+        var first: [String] = [], additional: [String] = []
+        var specialDone = false, grandDone = false, firstDone = false
+
+        let trRegex  = try! NSRegularExpression(pattern: "<tr[^>]*>(.*?)</tr>",
+                                                options: .dotMatchesLineSeparators)
+        let re8 = try! NSRegularExpression(pattern: "\\b\\d{8}\\b")
+        let re3 = try! NSRegularExpression(pattern: "\\b\\d{3}\\b")
+
+        func nums(_ re: NSRegularExpression, in text: String) -> [String] {
+            re.matches(in: text, range: NSRange(text.startIndex..., in: text))
+              .compactMap { Range($0.range, in: text).map { String(text[$0]) } }
+        }
+
+        for m in trRegex.matches(in: html, range: NSRange(html.startIndex..., in: html)) {
+            guard let r = Range(m.range(at: 1), in: html) else { continue }
+            let rowHtml = String(html[r])
+            // Strip tags without inserting spaces so adjacent spans merge their digit content
+            let text = rowHtml.replacingOccurrences(of: "<[^>]+>", with: "",
+                                                    options: .regularExpression)
+            if !specialDone && text.contains("特別獎") {
+                let n = nums(re8, in: text)
+                if !n.isEmpty { special = n[0]; specialDone = true }
+            } else if !grandDone && text.contains("特獎") && !text.contains("特別獎") {
+                let n = nums(re8, in: text)
+                if !n.isEmpty { grand = n[0]; grandDone = true }
+            } else if !firstDone && text.contains("頭獎") {
+                first = Array(nums(re8, in: text).prefix(3))
+                if !first.isEmpty { firstDone = true }
+            } else if text.contains("增開六獎") {
+                additional = Array(nums(re3, in: text).prefix(3))
+            }
+        }
+        return (special, grand, first, additional)
     }
 }

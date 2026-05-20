@@ -164,7 +164,7 @@ struct SettingsView: View {
                         Label("出國模式", systemImage: "airplane")
                     }
                     .tint(AppTheme.primary)
-                    .onChange(of: travelModeEnabled) { enabled in
+                    .onChange(of: travelModeEnabled) { _, enabled in
                         if enabled {
                             // 開啟：建立新旅程 session
                             travelModeStartTs   = Date().timeIntervalSince1970

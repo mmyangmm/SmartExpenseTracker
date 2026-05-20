@@ -48,7 +48,7 @@ struct QuickAddView: View {
                         .pickerStyle(.segmented)
                         .padding(.horizontal, 4)
                         .tint(AppTheme.primary)
-                        .onChange(of: isIncome) { income in
+                        .onChange(of: isIncome) { _, income in
                             // 切換類型時自動切換到對應的預設分類
                             if income {
                                 if !selectedCategory.isIncomeCategory {

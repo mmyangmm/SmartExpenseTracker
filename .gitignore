@@ -1,0 +1,14 @@
+.DS_Store
+
+# Xcode local build output
+build/
+DerivedData/
+*.xcresult
+
+# User-specific Xcode state
+*.xcuserstate
+*.xccheckout
+
+# Swift Package Manager local state
+.build/
+Package.resolved

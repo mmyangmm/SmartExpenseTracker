@@ -2,22 +2,33 @@ import Foundation
 import CloudKit
 
 actor CloudKitService {
-    // 沒有 iCloud Capability 時靜默停用，不會 crash
+    private static let containerIdentifier = "iCloud.com.Felix.SmartExpenseTracker"
+
     private lazy var container: CKContainer? = {
-        let entitlementKey = "com.apple.developer.icloud-container-identifiers"
-        guard Bundle.main.object(forInfoDictionaryKey: entitlementKey) != nil else {
-            print("[CloudKit] iCloud entitlement not found — sync disabled")
-            return nil
-        }
-        return CKContainer(identifier: "iCloud.com.yourcompany.SmartExpenseTracker")
+        #if targetEnvironment(simulator)
+        return nil
+        #else
+        return CKContainer(identifier: CloudKitService.containerIdentifier)
+        #endif
     }()
 
     private var db: CKDatabase? { container?.privateCloudDatabase }
 
+    // 沒有 iCloud 帳號、Capability 或 container 尚未建立時靜默停用，不會 crash。
+    private func isCloudKitAvailable() async -> Bool {
+        guard let container else { return false }
+        do {
+            return try await container.accountStatus() == .available
+        } catch {
+            print("[CloudKit] unavailable — sync disabled: \(error.localizedDescription)")
+            return false
+        }
+    }
+
     // MARK: - Fetch
 
     func fetchAll() async throws -> [Expense] {
-        guard let db else { return [] }
+        guard await isCloudKitAvailable(), let db else { return [] }
 
         let query = CKQuery(recordType: Expense.ckRecordType, predicate: NSPredicate(value: true))
         query.sortDescriptors = [NSSortDescriptor(key: "date", ascending: false)]
@@ -73,7 +84,7 @@ actor CloudKitService {
     // MARK: - Save
 
     func save(_ expense: Expense) async {
-        guard let db else { return }
+        guard await isCloudKitAvailable(), let db else { return }
         let record = expense.toCKRecord()
         do {
             try await db.save(record)
@@ -85,7 +96,7 @@ actor CloudKitService {
     // MARK: - Delete
 
     func delete(_ expense: Expense) async {
-        guard let db else { return }
+        guard await isCloudKitAvailable(), let db else { return }
         let recordID = CKRecord.ID(recordName: expense.id)
         do {
             try await db.deleteRecord(withID: recordID)

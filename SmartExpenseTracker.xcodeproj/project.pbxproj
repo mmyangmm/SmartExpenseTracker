@@ -63,17 +63,18 @@
 		11E8E78B2FA22DC400A53109 /* QuickAddView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAddView.swift; sourceTree = "<group>"; };
 		11E8E78C2FA22DC400A53109 /* ReceiptScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReceiptScannerView.swift; sourceTree = "<group>"; };
 		11E8E78D2FA22DC400A53109 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		11E8E78E2FA22DC400A53109 /* StatisticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsView.swift; sourceTree = "<group>"; };
-		11E8E78F2FA22DC400A53109 /* VoiceInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInputView.swift; sourceTree = "<group>"; };
-		11E8E79F2FA22DC400A53109 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
-		AABB00012FA22DC400A53109 /* ExchangeRateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExchangeRateService.swift; sourceTree = "<group>"; };
+			11E8E78E2FA22DC400A53109 /* StatisticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsView.swift; sourceTree = "<group>"; };
+			11E8E78F2FA22DC400A53109 /* VoiceInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInputView.swift; sourceTree = "<group>"; };
+			11E8E79F2FA22DC400A53109 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
+			AABB00012FA22DC400A53109 /* ExchangeRateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExchangeRateService.swift; sourceTree = "<group>"; };
 		AABB00032FA22DC400A53109 /* TravelCurrency.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelCurrency.swift; sourceTree = "<group>"; };
 		AABB00052FA22DC400A53109 /* TravelModeSummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TravelModeSummaryView.swift; sourceTree = "<group>"; };
 		AABB00072FA22DC400A53109 /* CurrencyConverterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrencyConverterView.swift; sourceTree = "<group>"; };
 		CCDD00012FA22DC400A53109 /* Invoice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Invoice.swift; sourceTree = "<group>"; };
-		CCDD00032FA22DC400A53109 /* InvoiceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceService.swift; sourceTree = "<group>"; };
-		CCDD00052FA22DC400A53109 /* InvoiceWalletView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceWalletView.swift; sourceTree = "<group>"; };
-		CCDD00072FA22DC400A53109 /* InvoiceScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceScanView.swift; sourceTree = "<group>"; };
+			CCDD00032FA22DC400A53109 /* InvoiceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceService.swift; sourceTree = "<group>"; };
+			CCDD00052FA22DC400A53109 /* InvoiceWalletView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceWalletView.swift; sourceTree = "<group>"; };
+			CCDD00072FA22DC400A53109 /* InvoiceScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InvoiceScanView.swift; sourceTree = "<group>"; };
+			EEDD00012FA22DC400A53109 /* SmartExpenseTracker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SmartExpenseTracker.entitlements; sourceTree = "<group>"; };
 		/* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -121,10 +122,11 @@
 /* Begin PBXGroup section */
 		11E8E74C2FA21BE800A53109 = {
 			isa = PBXGroup;
-			children = (
-				11E8E7572FA21BE800A53109 /* SmartExpenseTracker */,
-				11E8E7652FA21BE900A53109 /* SmartExpenseTrackerTests */,
-				11E8E76F2FA21BE900A53109 /* SmartExpenseTrackerUITests */,
+				children = (
+					EEDD00012FA22DC400A53109 /* SmartExpenseTracker.entitlements */,
+					11E8E7572FA21BE800A53109 /* SmartExpenseTracker */,
+					11E8E7652FA21BE900A53109 /* SmartExpenseTrackerTests */,
+					11E8E76F2FA21BE900A53109 /* SmartExpenseTrackerUITests */,
 				11E8E7562FA21BE800A53109 /* Products */,
 				11E8E7802FA22DC400A53109 /* App */,
 				11E8E7822FA22DC400A53109 /* Models */,
@@ -524,9 +526,10 @@
 		11E8E7772FA21BE900A53109 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
+					ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+					CODE_SIGN_ENTITLEMENTS = SmartExpenseTracker.entitlements;
+					CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = UDN4C958LV;
 				ENABLE_PREVIEWS = YES;
@@ -562,9 +565,10 @@
 		11E8E7782FA21BE900A53109 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
+					ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+					ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+					CODE_SIGN_ENTITLEMENTS = SmartExpenseTracker.entitlements;
+					CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = UDN4C958LV;
 				ENABLE_PREVIEWS = YES;

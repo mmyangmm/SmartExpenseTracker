@@ -43,6 +43,8 @@
 	<string>需要麥克風以進行語音記帳功能</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>從相簿選取收據照片以自動辨識金額</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>更新相簿中的喜愛狀態，方便快速找到常用收據照片</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>使用語音辨識自動解析消費金額與分類</string>
 	<key>UIApplicationSceneManifest</key>

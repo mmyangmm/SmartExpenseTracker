@@ -5,10 +5,10 @@ actor CloudKitService {
     private static let containerIdentifier = "iCloud.com.Felix.SmartExpenseTracker"
 
     private lazy var container: CKContainer? = {
-        #if targetEnvironment(simulator)
-        return nil
-        #else
+        #if CLOUDKIT_ENABLED && !targetEnvironment(simulator)
         return CKContainer(identifier: CloudKitService.containerIdentifier)
+        #else
+        return nil
         #endif
     }()
 

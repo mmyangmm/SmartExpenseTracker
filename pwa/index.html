@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#2f8f83">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="i 記帳">
+    <title>i 記帳</title>
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand">
+          <img src="./assets/icon-192.png" alt="" width="42" height="42">
+          <div>
+            <h1>i 記帳</h1>
+            <p id="todayLabel"></p>
+          </div>
+        </div>
+        <button class="icon-button" id="installButton" type="button" hidden aria-label="安裝">⇩</button>
+      </header>
+
+      <main>
+        <section class="view active" id="homeView" aria-labelledby="homeTitle">
+          <div class="month-bar">
+            <button class="icon-button" data-month="-1" type="button" aria-label="上個月">‹</button>
+            <div>
+              <h2 id="homeTitle"></h2>
+              <button class="text-button" id="goCurrentMonth" type="button" hidden>回到本月</button>
+            </div>
+            <button class="icon-button" data-month="1" type="button" aria-label="下個月">›</button>
+          </div>
+
+          <section class="summary-panel">
+            <div class="summary-grid">
+              <div>
+                <span class="metric-label expense-dot">支出</span>
+                <strong id="monthExpense">NT$0</strong>
+              </div>
+              <div>
+                <span class="metric-label income-dot">收入</span>
+                <strong class="income" id="monthIncome">NT$0</strong>
+              </div>
+              <div>
+                <span class="metric-label balance-dot">結餘</span>
+                <strong id="monthBalance">NT$0</strong>
+              </div>
+            </div>
+            <div class="compare-row">
+              <span>6 個月平均</span>
+              <span id="averageLabel">NT$0</span>
+            </div>
+            <div class="meter" aria-hidden="true"><span id="averageMeter"></span></div>
+          </section>
+
+          <section class="category-strip" id="categoryStrip" aria-label="分類摘要"></section>
+
+          <section class="list-section" aria-labelledby="recentTitle">
+            <div class="section-heading">
+              <h3 id="recentTitle">最近記錄</h3>
+              <span id="recordCount"></span>
+            </div>
+            <div class="transaction-list" id="transactionList"></div>
+          </section>
+        </section>
+
+        <section class="view" id="statsView" aria-labelledby="statsTitle">
+          <div class="section-heading stats-heading">
+            <h2 id="statsTitle">統計</h2>
+            <select id="statsMode" aria-label="圖表類型">
+              <option value="category">分類</option>
+              <option value="daily">每日</option>
+            </select>
+          </div>
+          <section class="summary-panel stats-panel">
+            <div id="chartCanvas" class="chart-canvas"></div>
+          </section>
+          <section class="list-section">
+            <div class="section-heading">
+              <h3>明細排行</h3>
+              <span id="statsCount"></span>
+            </div>
+            <div id="statsList" class="stats-list"></div>
+          </section>
+        </section>
+
+        <section class="view" id="settingsView" aria-labelledby="settingsTitle">
+          <div class="section-heading settings-title">
+            <h2 id="settingsTitle">設定</h2>
+          </div>
+          <section class="settings-list">
+            <button id="exportJson" class="settings-row" type="button">
+              <span>匯出備份</span>
+              <strong>JSON</strong>
+            </button>
+            <button id="exportCsv" class="settings-row" type="button">
+              <span>匯出表格</span>
+              <strong>CSV</strong>
+            </button>
+            <label class="settings-row file-row">
+              <span>匯入備份</span>
+              <strong>JSON</strong>
+              <input id="importJson" type="file" accept="application/json,.json">
+            </label>
+            <button id="clearData" class="settings-row danger-row" type="button">
+              <span>清除資料</span>
+              <strong>全部</strong>
+            </button>
+          </section>
+        </section>
+      </main>
+
+      <button class="fab" id="addButton" type="button">＋</button>
+
+      <nav class="tabbar" aria-label="主要分頁">
+        <button class="tab active" data-tab="home" type="button">⌂<span>首頁</span></button>
+        <button class="tab" data-tab="stats" type="button">◔<span>統計</span></button>
+        <button class="tab" data-tab="settings" type="button">⚙<span>設定</span></button>
+      </nav>
+    </div>
+
+    <dialog id="entryDialog">
+      <form id="entryForm" method="dialog">
+        <div class="dialog-head">
+          <button class="icon-button" id="cancelEntry" value="cancel" type="button" aria-label="取消">×</button>
+          <h2 id="dialogTitle">快速記帳</h2>
+          <button class="save-button" id="saveEntry" value="default" type="submit">儲存</button>
+        </div>
+
+        <input type="hidden" id="entryId">
+
+        <div class="segmented" role="radiogroup" aria-label="收支類型">
+          <label>
+            <input type="radio" name="entryType" value="expense" checked>
+            <span>支出</span>
+          </label>
+          <label>
+            <input type="radio" name="entryType" value="income">
+            <span>收入</span>
+          </label>
+        </div>
+
+        <label class="field amount-field">
+          <span>金額</span>
+          <input id="amountInput" inputmode="decimal" autocomplete="off" placeholder="0" required>
+        </label>
+
+        <label class="field">
+          <span>分類</span>
+          <select id="categoryInput"></select>
+        </label>
+
+        <label class="field">
+          <span>備註</span>
+          <input id="noteInput" autocomplete="off" placeholder="午餐、捷運、薪資...">
+        </label>
+
+        <label class="field">
+          <span>日期</span>
+          <input id="dateInput" type="datetime-local" required>
+        </label>
+
+        <button class="delete-button" id="deleteEntry" type="button" hidden>刪除此筆</button>
+      </form>
+    </dialog>
+
+    <template id="emptyTemplate">
+      <div class="empty-state">
+        <div>💸</div>
+        <strong>本月還沒有記錄</strong>
+      </div>
+    </template>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>

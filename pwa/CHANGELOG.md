@@ -30,3 +30,7 @@
 - 修正通知提醒時間欄位對齊，避免 time input 在設定卡內偏移。
 - 更新快速記帳底部操作列：掃描改為相機圖示、語音改為麥克風圖示，三個操作鍵重新對齊。
 - 將 PWA 資源快取版本升為 v9。
+- 將泛用 HTTP 端點同步改為 Firebase Authentication + Google 登入 + Cloud Firestore 同步。
+- 新增 `firebase-config.js`，並在 GitHub Pages workflow 支援從 `PWA_FIREBASE_CONFIG` 或分離的 Firebase secrets 注入設定。
+- Google 登入後會讀取 `users/{uid}/backups/smart-expense-tracker`，與本機 `localStorage` 資料合併，再自動回寫 Firestore。
+- 將 PWA 資源快取版本升為 v10。

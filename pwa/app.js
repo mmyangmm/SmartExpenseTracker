@@ -3,10 +3,19 @@ const SETTINGS_KEY = "i-expense-pwa-settings-v1";
 const TRIPS_KEY = "i-expense-pwa-trips-v1";
 const RATE_CACHE_KEY = "i-expense-pwa-rates-v1";
 const DEFAULT_THEME_COLOR = "#ff6b9d";
+const FIREBASE_SDK_VERSION = "12.13.0";
 
 let reminderTimer = null;
 let cloudSyncTimer = null;
 let cloudSyncInFlight = false;
+let firebaseInitializing = true;
+let firebaseConfigured = false;
+let firebaseApp = null;
+let firebaseAuth = null;
+let firebaseDb = null;
+let firebaseModules = null;
+let firebaseUser = null;
+let cloudMergeInProgress = false;
 
 const categories = [
   { id: "food", name: "餐飲", type: "expense", emoji: "🍜", color: "#ff6b6b", keywords: ["午餐", "早餐", "晚餐", "飯", "食", "吃", "餐廳", "便當", "麵", "小吃", "夜市", "火鍋", "壽司", "拉麵", "漢堡", "pizza"] },
@@ -181,10 +190,13 @@ const els = {
   requestNotification: $("#requestNotification"),
   testNotification: $("#testNotification"),
   notificationStatus: $("#notificationStatus"),
-  cloudSyncEnabled: $("#cloudSyncEnabled"),
-  cloudSyncUrl: $("#cloudSyncUrl"),
-  cloudSyncToken: $("#cloudSyncToken"),
   cloudSyncStatus: $("#cloudSyncStatus"),
+  cloudUserCard: $("#cloudUserCard"),
+  cloudUserAvatar: $("#cloudUserAvatar"),
+  cloudUserName: $("#cloudUserName"),
+  cloudUserEmail: $("#cloudUserEmail"),
+  googleSignIn: $("#googleSignIn"),
+  googleSignOut: $("#googleSignOut"),
   syncNow: $("#syncNow"),
   dataCount: $("#dataCount"),
   copyJson: $("#copyJson")
@@ -210,6 +222,7 @@ function init() {
   refreshRatesForSettings(false);
   scheduleReminder();
   registerServiceWorker();
+  initFirebaseSync();
 }
 
 function bindEvents() {
@@ -281,23 +294,8 @@ function bindEvents() {
     renderNotificationSettings();
     scheduleReminder();
   });
-  els.cloudSyncEnabled.addEventListener("change", () => {
-    state.settings.cloudSyncEnabled = els.cloudSyncEnabled.checked;
-    saveSettings();
-    renderCloudSyncSettings();
-    queueCloudSync("settings");
-  });
-  els.cloudSyncUrl.addEventListener("change", () => {
-    state.settings.cloudSyncUrl = els.cloudSyncUrl.value.trim();
-    saveSettings();
-    renderCloudSyncSettings();
-    queueCloudSync("settings");
-  });
-  els.cloudSyncToken.addEventListener("change", () => {
-    state.settings.cloudSyncToken = els.cloudSyncToken.value.trim();
-    saveSettings();
-    renderCloudSyncSettings();
-  });
+  els.googleSignIn.addEventListener("click", signInWithGoogle);
+  els.googleSignOut.addEventListener("click", signOutGoogle);
   els.syncNow.addEventListener("click", () => performCloudSync("manual", true));
   els.requestNotification.addEventListener("click", requestNotificationPermission);
   els.testNotification.addEventListener("click", () => showReminderNotification(true));
@@ -583,27 +581,43 @@ function renderNotificationSettings() {
 }
 
 function renderCloudSyncSettings() {
-  const enabled = Boolean(state.settings.cloudSyncEnabled);
-  const hasUrl = Boolean(state.settings.cloudSyncUrl);
-  els.cloudSyncEnabled.checked = enabled;
-  els.cloudSyncUrl.value = state.settings.cloudSyncUrl || "";
-  els.cloudSyncToken.value = state.settings.cloudSyncToken || "";
-  els.syncNow.disabled = !hasUrl || cloudSyncInFlight;
+  const signedIn = Boolean(firebaseUser);
+  const configured = firebaseConfigured;
+  els.cloudUserCard.hidden = !signedIn;
+  if (signedIn) {
+    const name = firebaseUser.displayName || "Google 使用者";
+    els.cloudUserName.textContent = name;
+    els.cloudUserEmail.textContent = firebaseUser.email || "";
+    els.cloudUserAvatar.innerHTML = firebaseUser.photoURL
+      ? `<img src="${escapeAttr(firebaseUser.photoURL)}" alt="">`
+      : escapeHtml(name.slice(0, 1).toUpperCase());
+  }
+
+  els.googleSignIn.hidden = signedIn;
+  els.googleSignIn.disabled = !configured || cloudSyncInFlight || firebaseInitializing;
+  els.googleSignOut.hidden = !signedIn;
+  els.googleSignOut.disabled = cloudSyncInFlight;
+  els.syncNow.disabled = !configured || !signedIn || cloudSyncInFlight;
+
   if (cloudSyncInFlight) {
     els.cloudSyncStatus.textContent = "同步中";
   } else if (state.cloudSyncMessage) {
     els.cloudSyncStatus.textContent = state.cloudSyncMessage;
-  } else if (!hasUrl) {
-    els.cloudSyncStatus.textContent = "尚未設定端點";
+  } else if (firebaseInitializing) {
+    els.cloudSyncStatus.textContent = "Firebase 準備中";
+  } else if (!configured) {
+    els.cloudSyncStatus.textContent = "Firebase 尚未設定";
+  } else if (!signedIn) {
+    els.cloudSyncStatus.textContent = "尚未登入";
   } else if (state.settings.cloudSyncLastAt) {
     els.cloudSyncStatus.textContent = `上次同步 ${timeShort(new Date(state.settings.cloudSyncLastAt))}`;
   } else {
-    els.cloudSyncStatus.textContent = enabled ? "自動同步已開啟" : "可手動同步";
+    els.cloudSyncStatus.textContent = "已登入，等待同步";
   }
 }
 
 function queueCloudSync(reason) {
-  if (!state.settings.cloudSyncEnabled || !state.settings.cloudSyncUrl) {
+  if (cloudMergeInProgress || !firebaseConfigured || !firebaseUser || !firebaseDb) {
     renderCloudSyncSettings();
     return;
   }
@@ -612,9 +626,15 @@ function queueCloudSync(reason) {
 }
 
 async function performCloudSync(reason, manual) {
-  if (!state.settings.cloudSyncUrl) {
-    state.cloudSyncMessage = "請先設定端點";
+  if (!firebaseConfigured) {
+    state.cloudSyncMessage = "Firebase 尚未設定";
     renderCloudSyncSettings();
+    return;
+  }
+  if (!firebaseUser) {
+    state.cloudSyncMessage = "請先使用 Google 登入";
+    renderCloudSyncSettings();
+    if (manual) await signInWithGoogle();
     return;
   }
   if (cloudSyncInFlight) return;
@@ -624,29 +644,156 @@ async function performCloudSync(reason, manual) {
   renderCloudSyncSettings();
 
   try {
-    const headers = { "Content-Type": "application/json" };
-    if (state.settings.cloudSyncToken) {
-      headers.Authorization = `Bearer ${state.settings.cloudSyncToken}`;
-    }
-    const response = await fetch(state.settings.cloudSyncUrl, {
-      method: "POST",
-      mode: "cors",
-      headers,
-      body: JSON.stringify({
-        reason,
-        ...createBackupPayload()
-      })
+    const payload = createBackupPayload();
+    await firebaseModules.setDoc(firebaseSyncRef(), {
+      ...payload,
+      reason,
+      user: firebaseUserProfile(firebaseUser),
+      clientUpdatedAt: new Date().toISOString(),
+      updatedAt: firebaseModules.serverTimestamp()
     });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
     state.settings.cloudSyncLastAt = new Date().toISOString();
     state.cloudSyncMessage = `已同步 ${timeShort(new Date())}`;
     saveSettings({ sync: false });
   } catch {
-    state.cloudSyncMessage = manual ? "同步失敗，請檢查端點" : "自動同步失敗";
+    state.cloudSyncMessage = manual ? "同步失敗，請檢查 Firebase" : "自動同步失敗";
   } finally {
     cloudSyncInFlight = false;
     renderCloudSyncSettings();
   }
+}
+
+async function initFirebaseSync() {
+  const config = firebaseConfig();
+  firebaseConfigured = isValidFirebaseConfig(config);
+  if (!firebaseConfigured) {
+    firebaseInitializing = false;
+    state.cloudSyncMessage = "";
+    renderCloudSyncSettings();
+    return;
+  }
+
+  try {
+    const [appModule, authModule, firestoreModule] = await Promise.all([
+      import(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-app.js`),
+      import(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-auth.js`),
+      import(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-firestore.js`)
+    ]);
+    firebaseModules = {
+      GoogleAuthProvider: authModule.GoogleAuthProvider,
+      browserLocalPersistence: authModule.browserLocalPersistence,
+      doc: firestoreModule.doc,
+      getDoc: firestoreModule.getDoc,
+      serverTimestamp: firestoreModule.serverTimestamp,
+      setDoc: firestoreModule.setDoc,
+      signInWithPopup: authModule.signInWithPopup,
+      signInWithRedirect: authModule.signInWithRedirect,
+      signOut: authModule.signOut
+    };
+    firebaseApp = appModule.initializeApp(config);
+    firebaseAuth = authModule.getAuth(firebaseApp);
+    firebaseDb = firestoreModule.getFirestore(firebaseApp);
+    await authModule.setPersistence(firebaseAuth, authModule.browserLocalPersistence);
+    await authModule.getRedirectResult(firebaseAuth).catch(() => null);
+    authModule.onAuthStateChanged(firebaseAuth, (user) => {
+      firebaseUser = user;
+      state.cloudSyncMessage = user ? "Google 已登入" : "";
+      renderCloudSyncSettings();
+      if (user) mergeCloudSnapshotAfterLogin();
+    });
+  } catch {
+    firebaseConfigured = false;
+    state.cloudSyncMessage = "Firebase 載入失敗";
+  } finally {
+    firebaseInitializing = false;
+    renderCloudSyncSettings();
+  }
+}
+
+async function signInWithGoogle() {
+  if (!firebaseConfigured || !firebaseAuth || !firebaseModules) {
+    state.cloudSyncMessage = "Firebase 尚未設定";
+    renderCloudSyncSettings();
+    return;
+  }
+  const provider = new firebaseModules.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  state.cloudSyncMessage = "開啟 Google 登入";
+  renderCloudSyncSettings();
+  try {
+    if (shouldUseRedirectSignIn()) {
+      await firebaseModules.signInWithRedirect(firebaseAuth, provider);
+      return;
+    }
+    await firebaseModules.signInWithPopup(firebaseAuth, provider);
+  } catch {
+    try {
+      await firebaseModules.signInWithRedirect(firebaseAuth, provider);
+    } catch {
+      state.cloudSyncMessage = "Google 登入失敗";
+      renderCloudSyncSettings();
+    }
+  }
+}
+
+async function signOutGoogle() {
+  if (!firebaseAuth || !firebaseModules) return;
+  await firebaseModules.signOut(firebaseAuth);
+  firebaseUser = null;
+  state.cloudSyncMessage = "已登出";
+  renderCloudSyncSettings();
+}
+
+async function mergeCloudSnapshotAfterLogin() {
+  if (!firebaseUser || !firebaseDb || !firebaseModules || cloudSyncInFlight) return;
+  cloudSyncInFlight = true;
+  cloudMergeInProgress = true;
+  state.cloudSyncMessage = "讀取雲端資料";
+  renderCloudSyncSettings();
+  try {
+    const snapshot = await firebaseModules.getDoc(firebaseSyncRef());
+    if (snapshot.exists()) {
+      const result = mergeBackupIntoState(snapshot.data(), { sync: false });
+      state.cloudSyncMessage = `已合併雲端資料 · ${result.expenses} 筆`;
+      render();
+    } else {
+      state.cloudSyncMessage = "已登入，建立雲端備份";
+    }
+    cloudMergeInProgress = false;
+    cloudSyncInFlight = false;
+    queueCloudSync("login");
+  } catch {
+    state.cloudSyncMessage = "讀取雲端失敗";
+    cloudMergeInProgress = false;
+    cloudSyncInFlight = false;
+  } finally {
+    renderCloudSyncSettings();
+  }
+}
+
+function firebaseSyncRef() {
+  return firebaseModules.doc(firebaseDb, "users", firebaseUser.uid, "backups", "smart-expense-tracker");
+}
+
+function firebaseConfig() {
+  return window.I_EXPENSE_FIREBASE_CONFIG || {};
+}
+
+function isValidFirebaseConfig(config) {
+  return Boolean(config && config.apiKey && config.authDomain && config.projectId && config.appId);
+}
+
+function firebaseUserProfile(user) {
+  return {
+    uid: user.uid,
+    email: user.email || "",
+    displayName: user.displayName || "",
+    photoURL: user.photoURL || ""
+  };
+}
+
+function shouldUseRedirectSignIn() {
+  return window.matchMedia("(display-mode: standalone)").matches || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 }
 
 function updateDataManagement() {
@@ -1127,7 +1274,8 @@ function saveEntry(event) {
     category: els.categoryInput.value,
     note: els.noteInput.value.trim(),
     date: new Date(els.dateInput.value).toISOString(),
-    isIncome: entryType() === "income"
+    isIncome: entryType() === "income",
+    updatedAt: new Date().toISOString()
   };
 
   if (isForeign) {
@@ -1774,9 +1922,6 @@ function normalizeSettings(value) {
     converterCurrencies: uniqueCodes(Array.isArray(value.converterCurrencies)
       ? value.converterCurrencies
       : String(value.converterCurrencies || converterDefaultCodes.join(",")).split(",")),
-    cloudSyncEnabled: Boolean(value.cloudSyncEnabled),
-    cloudSyncUrl: String(value.cloudSyncUrl || ""),
-    cloudSyncToken: String(value.cloudSyncToken || ""),
     cloudSyncLastAt: String(value.cloudSyncLastAt || "")
   };
 }
@@ -1816,7 +1961,8 @@ function normalizeExpenseRecord(item) {
     ...item,
     amount: Number(item.amount),
     category: normalizeCategory(item.category, isIncome ? "income" : "expense"),
-    isIncome
+    isIncome,
+    updatedAt: String(item.updatedAt || item.date || new Date().toISOString())
   };
   if (item.currency && item.currency !== "TWD") {
     normalized.currency = currencyInfoFor(item.currency).code;
@@ -1826,9 +1972,10 @@ function normalizeExpenseRecord(item) {
   return normalized;
 }
 
-function persist() {
+function persist(options = {}) {
+  const { sync = true } = options;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.expenses));
-  queueCloudSync("expenses");
+  if (sync) queueCloudSync("expenses");
 }
 
 function saveSettings(options = {}) {
@@ -1837,9 +1984,10 @@ function saveSettings(options = {}) {
   if (sync) queueCloudSync("settings");
 }
 
-function saveTrips() {
+function saveTrips(options = {}) {
+  const { sync = true } = options;
   localStorage.setItem(TRIPS_KEY, JSON.stringify(state.trips));
-  queueCloudSync("trips");
+  if (sync) queueCloudSync("trips");
 }
 
 function saveRateCache() {
@@ -1849,7 +1997,7 @@ function saveRateCache() {
 function createBackupPayload() {
   return {
     app: "i 記帳 PWA",
-    version: 6,
+    version: 7,
     exportedAt: new Date().toISOString(),
     expenses: state.expenses,
     settings: exportableSettings(),
@@ -1860,6 +2008,8 @@ function createBackupPayload() {
 function exportableSettings() {
   const settings = { ...state.settings };
   delete settings.cloudSyncToken;
+  delete settings.cloudSyncUrl;
+  delete settings.cloudSyncEnabled;
   return settings;
 }
 
@@ -1902,33 +2052,7 @@ function importJson(event) {
   reader.onload = () => {
     try {
       const parsed = JSON.parse(String(reader.result));
-      const imported = Array.isArray(parsed) ? parsed : parsed.expenses;
-      if (!Array.isArray(imported)) throw new Error("Invalid backup");
-      const normalized = imported
-        .filter((item) => item && Number(item.amount) > 0 && item.date)
-        .map((item) => normalizeExpenseRecord({
-          ...item,
-          id: item.id || makeId(),
-          amount: Number(item.amount),
-          category: item.category,
-          note: String(item.note || ""),
-          date: new Date(item.date).toISOString(),
-          isIncome: Boolean(item.isIncome)
-        }));
-      state.expenses = mergeExpenses(state.expenses, normalized);
-      if (!Array.isArray(parsed) && parsed.settings) {
-        const importedSettings = { ...parsed.settings };
-        delete importedSettings.cloudSyncToken;
-        state.settings = normalizeSettings({ ...state.settings, ...importedSettings });
-        saveSettings();
-        applySettings();
-        populateCurrencySelects();
-      }
-      if (!Array.isArray(parsed) && Array.isArray(parsed.trips)) {
-        state.trips = mergeTrips(state.trips, parsed.trips);
-        saveTrips();
-      }
-      persist();
+      mergeBackupIntoState(parsed);
       render();
     } catch {
       window.alert("匯入失敗，檔案格式不正確。");
@@ -1939,9 +2063,52 @@ function importJson(event) {
   reader.readAsText(file);
 }
 
+function mergeBackupIntoState(parsed, options = {}) {
+  const { sync = true } = options;
+  const imported = Array.isArray(parsed) ? parsed : parsed?.expenses;
+  if (!Array.isArray(imported)) throw new Error("Invalid backup");
+  const normalized = imported
+    .filter((item) => item && Number(item.amount) > 0 && item.date)
+    .map((item) => normalizeExpenseRecord({
+      ...item,
+      id: item.id || makeId(),
+      amount: Number(item.amount),
+      category: item.category,
+      note: String(item.note || ""),
+      date: new Date(item.date).toISOString(),
+      isIncome: Boolean(item.isIncome)
+    }));
+  state.expenses = mergeExpenses(state.expenses, normalized);
+
+  if (!Array.isArray(parsed) && parsed.settings) {
+    const importedSettings = { ...parsed.settings };
+    delete importedSettings.cloudSyncToken;
+    delete importedSettings.cloudSyncUrl;
+    delete importedSettings.cloudSyncEnabled;
+    state.settings = normalizeSettings({ ...state.settings, ...importedSettings });
+    saveSettings({ sync });
+    applySettings();
+    populateCurrencySelects();
+  }
+
+  const importedTrips = !Array.isArray(parsed) && Array.isArray(parsed.trips) ? parsed.trips : [];
+  if (importedTrips.length) {
+    state.trips = mergeTrips(state.trips, importedTrips);
+    saveTrips({ sync });
+  }
+
+  persist({ sync });
+  return { expenses: normalized.length, trips: importedTrips.length };
+}
+
 function mergeExpenses(current, imported) {
   const byId = new Map(current.map((item) => [item.id, item]));
-  imported.forEach((item) => byId.set(item.id, item));
+  imported.forEach((item) => {
+    const existing = byId.get(item.id);
+    if (!existing || new Date(item.updatedAt || item.date) >= new Date(existing.updatedAt || existing.date)) {
+      byId.set(item.id, item);
+    }
+  });
   return Array.from(byId.values()).sort((a, b) => new Date(b.date) - new Date(a.date));
 }
 

@@ -1,9 +1,10 @@
-const CACHE_NAME = "i-expense-pwa-v9";
+const CACHE_NAME = "i-expense-pwa-v10";
 const CORE_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=9",
-  "./app.js?v=9",
+  "./styles.css?v=10",
+  "./firebase-config.js?v=10",
+  "./app.js?v=10",
   "./manifest.webmanifest",
   "./CHANGELOG.md",
   "./assets/icon-192.png",

@@ -33,6 +33,46 @@ jobs:
         with:
           enablement: true
 
+      - name: Inject Firebase config
+        env:
+          PWA_FIREBASE_CONFIG: ${{ secrets.PWA_FIREBASE_CONFIG }}
+          PWA_FIREBASE_API_KEY: ${{ secrets.PWA_FIREBASE_API_KEY }}
+          PWA_FIREBASE_AUTH_DOMAIN: ${{ secrets.PWA_FIREBASE_AUTH_DOMAIN }}
+          PWA_FIREBASE_PROJECT_ID: ${{ secrets.PWA_FIREBASE_PROJECT_ID }}
+          PWA_FIREBASE_APP_ID: ${{ secrets.PWA_FIREBASE_APP_ID }}
+          PWA_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.PWA_FIREBASE_MESSAGING_SENDER_ID }}
+          PWA_FIREBASE_STORAGE_BUCKET: ${{ secrets.PWA_FIREBASE_STORAGE_BUCKET }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          raw = os.environ.get("PWA_FIREBASE_CONFIG", "").strip()
+          if raw:
+              config = json.loads(raw)
+          else:
+              config = {
+                  "apiKey": os.environ.get("PWA_FIREBASE_API_KEY", "").strip(),
+                  "authDomain": os.environ.get("PWA_FIREBASE_AUTH_DOMAIN", "").strip(),
+                  "projectId": os.environ.get("PWA_FIREBASE_PROJECT_ID", "").strip(),
+                  "appId": os.environ.get("PWA_FIREBASE_APP_ID", "").strip(),
+                  "messagingSenderId": os.environ.get("PWA_FIREBASE_MESSAGING_SENDER_ID", "").strip(),
+                  "storageBucket": os.environ.get("PWA_FIREBASE_STORAGE_BUCKET", "").strip(),
+              }
+
+          if all(config.get(key) for key in ("apiKey", "authDomain", "projectId", "appId")):
+              Path("pwa/firebase-config.js").write_text(
+                  "window.I_EXPENSE_FIREBASE_CONFIG = "
+                  + json.dumps(config, ensure_ascii=False, separators=(",", ":"))
+                  + ";\n",
+                  encoding="utf-8",
+              )
+              print("Firebase config injected")
+          else:
+              print("Firebase config not set; deploying placeholder config")
+          PY
+
       - name: Upload PWA artifact
         uses: actions/upload-pages-artifact@v3
         with:

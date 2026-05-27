@@ -1,13 +1,15 @@
-const CACHE_NAME = "i-expense-pwa-v4";
+const CACHE_NAME = "i-expense-pwa-v6";
 const CORE_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=4",
-  "./app.js?v=4",
+  "./styles.css?v=6",
+  "./app.js?v=6",
   "./manifest.webmanifest",
+  "./CHANGELOG.md",
   "./assets/icon-192.png",
   "./assets/icon-512.png",
-  "./assets/apple-touch-icon.png"
+  "./assets/apple-touch-icon.png",
+  "./assets/app-icon-cat.png"
 ];
 
 self.addEventListener("install", (event) => {

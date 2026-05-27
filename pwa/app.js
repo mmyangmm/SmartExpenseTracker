@@ -38,7 +38,7 @@ const categories = [
 ];
 
 const travelCurrencies = [
-  { code: "TWD", name: "新台幣", flag: "🇹🇼", symbol: "NT$" },
+  { code: "TWD", name: "新台幣", flag: "NT$", symbol: "NT$" },
   { code: "JPY", name: "日圓", flag: "🇯🇵", symbol: "¥" },
   { code: "USD", name: "美元", flag: "🇺🇸", symbol: "$" },
   { code: "EUR", name: "歐元", flag: "🇪🇺", symbol: "€" },
@@ -90,6 +90,7 @@ const iconOptions = [
   { id: "default", name: "經典", symbol: "i", bg: "linear-gradient(135deg, #ff6b9d, #f06f3f)" },
   { id: "coin", name: "金幣", symbol: "$", bg: "linear-gradient(135deg, #f8b64c, #e56d46)" },
   { id: "travel", name: "旅行", symbol: "✈", bg: "linear-gradient(135deg, #2f8edb, #14a38b)" },
+  { id: "cat", name: "貓咪", image: "./assets/app-icon-cat.png", bg: "linear-gradient(135deg, #2dd4bf, #ff7aa8)" },
   { id: "night", name: "夜間", symbol: "月", bg: "linear-gradient(135deg, #20242d, #7a50d6)" }
 ];
 
@@ -103,7 +104,6 @@ const state = {
   selectedMonth: startOfMonth(new Date()),
   currentTab: "home",
   statsMode: "category",
-  deferredInstallPrompt: null,
   recognition: null,
   isRecording: false,
   voiceTranscript: "",
@@ -159,9 +159,9 @@ const els = {
   scanReceipt: $("#scanReceipt"),
   receiptInput: $("#receiptInput"),
   scanBanner: $("#scanBanner"),
-  installButton: $("#installButton"),
   brandIcon: $("#brandIcon"),
-  appearanceSummary: $("#appearanceSummary"),
+  themeSummary: $("#themeSummary"),
+  iconSummary: $("#iconSummary"),
   themeOptions: $("#themeOptions"),
   iconOptions: $("#iconOptions"),
   travelModeEnabled: $("#travelModeEnabled"),
@@ -169,11 +169,11 @@ const els = {
   travelRateLabel: $("#travelRateLabel"),
   travelStatus: $("#travelStatus"),
   refreshTravelRate: $("#refreshTravelRate"),
-  converterAmount: $("#converterAmount"),
-  converterBase: $("#converterBase"),
   refreshConverterRates: $("#refreshConverterRates"),
   converterList: $("#converterList"),
   converterStatus: $("#converterStatus"),
+  converterAddCurrency: $("#converterAddCurrency"),
+  addConverterCurrency: $("#addConverterCurrency"),
   reminderEnabled: $("#reminderEnabled"),
   reminderTime: $("#reminderTime"),
   requestNotification: $("#requestNotification"),
@@ -256,19 +256,8 @@ function bindEvents() {
   els.scanReceipt.addEventListener("click", () => els.receiptInput.click());
   els.receiptInput.addEventListener("change", handleReceiptInput);
 
-  els.converterAmount.addEventListener("input", () => {
-    state.settings.converterAmount = normalizeAmountText(els.converterAmount.value);
-    els.converterAmount.value = state.settings.converterAmount;
-    saveSettings();
-    renderConverter();
-  });
-  els.converterBase.addEventListener("change", () => {
-    state.settings.converterBase = els.converterBase.value;
-    saveSettings();
-    refreshConverterRates(false);
-    renderConverter();
-  });
   els.refreshConverterRates.addEventListener("click", () => refreshConverterRates(true));
+  els.addConverterCurrency.addEventListener("click", addSelectedConverterCurrency);
   els.refreshTravelRate.addEventListener("click", () => refreshTravelRate(true));
   els.travelModeEnabled.addEventListener("change", () => toggleTravelMode(els.travelModeEnabled.checked));
   els.travelCurrency.addEventListener("change", () => {
@@ -293,19 +282,6 @@ function bindEvents() {
   $("#importJson").addEventListener("change", importJson);
   $("#clearData").addEventListener("click", clearData);
 
-  window.addEventListener("beforeinstallprompt", (event) => {
-    event.preventDefault();
-    state.deferredInstallPrompt = event;
-    els.installButton.hidden = false;
-  });
-
-  els.installButton.addEventListener("click", async () => {
-    if (!state.deferredInstallPrompt) return;
-    state.deferredInstallPrompt.prompt();
-    await state.deferredInstallPrompt.userChoice;
-    state.deferredInstallPrompt = null;
-    els.installButton.hidden = true;
-  });
 }
 
 function render() {
@@ -327,37 +303,29 @@ function renderTabs() {
 
 function populateCurrencySelects() {
   const options = travelCurrencies.map((currency) => `
-    <option value="${currency.code}">${currency.flag} ${currency.code} ${currency.name}</option>
+    <option value="${currency.code}">${currencyLabelText(currency)}</option>
   `).join("");
   els.travelCurrency.innerHTML = options;
-  els.converterBase.innerHTML = options;
+  els.converterAddCurrency.innerHTML = "";
 }
 
 function renderSettings() {
-  renderAppearanceSettings();
+  renderThemeSettings();
+  renderIconSettings();
   renderTravelSettings();
   renderConverter();
   renderNotificationSettings();
   updateDataManagement();
 }
 
-function renderAppearanceSettings() {
+function renderThemeSettings() {
   const theme = validThemeId(state.settings.theme);
-  const icon = validIconId(state.settings.icon);
   const themeName = themeOptions.find((option) => option.id === theme)?.name || "蜜桃";
-  const iconName = iconOptions.find((option) => option.id === icon)?.name || "經典";
-  els.appearanceSummary.textContent = `${themeName} · ${iconName}`;
+  els.themeSummary.textContent = themeName;
 
   els.themeOptions.innerHTML = themeOptions.map((option) => `
     <button class="option-button ${option.id === theme ? "selected" : ""}" type="button" data-theme="${option.id}" aria-pressed="${option.id === theme}">
       <span class="swatch" style="background:${option.swatch}" aria-hidden="true"></span>
-      <span>${escapeHtml(option.name)}</span>
-    </button>
-  `).join("");
-
-  els.iconOptions.innerHTML = iconOptions.map((option) => `
-    <button class="option-button ${option.id === icon ? "selected" : ""}" type="button" data-icon="${option.id}" aria-pressed="${option.id === icon}">
-      <span class="icon-preview" style="background:${option.bg}" aria-hidden="true">${escapeHtml(option.symbol)}</span>
       <span>${escapeHtml(option.name)}</span>
     </button>
   `).join("");
@@ -367,16 +335,29 @@ function renderAppearanceSettings() {
       state.settings.theme = button.dataset.theme;
       saveSettings();
       applySettings();
-      renderAppearanceSettings();
+      renderThemeSettings();
     });
   });
+}
+
+function renderIconSettings() {
+  const icon = validIconId(state.settings.icon);
+  const iconName = iconOptions.find((option) => option.id === icon)?.name || "經典";
+  els.iconSummary.textContent = iconName;
+
+  els.iconOptions.innerHTML = iconOptions.map((option) => `
+    <button class="option-button ${option.id === icon ? "selected" : ""}" type="button" data-icon="${option.id}" aria-pressed="${option.id === icon}">
+      <span class="icon-preview" style="background:${option.bg}" aria-hidden="true">${iconMarkup(option)}</span>
+      <span>${escapeHtml(option.name)}</span>
+    </button>
+  `).join("");
 
   $$("#iconOptions [data-icon]").forEach((button) => {
     button.addEventListener("click", () => {
       state.settings.icon = button.dataset.icon;
       saveSettings();
       applySettings();
-      renderAppearanceSettings();
+      renderIconSettings();
     });
   });
 }
@@ -387,7 +368,7 @@ function applySettings() {
   const icon = iconOptions.find((option) => option.id === validIconId(state.settings.icon)) || iconOptions[0];
   document.body.dataset.theme = theme;
   document.body.style.setProperty("--app-icon-bg", icon.bg);
-  els.brandIcon.textContent = icon.symbol;
+  els.brandIcon.innerHTML = iconMarkup(icon);
 
   const themeMeta = document.querySelector("meta[name='theme-color']");
   if (themeMeta) themeMeta.setAttribute("content", themeOption.color || DEFAULT_THEME_COLOR);
@@ -402,7 +383,7 @@ function renderTravelSettings() {
   els.travelModeEnabled.checked = Boolean(state.settings.travelModeEnabled);
   els.travelCurrency.value = currency.code;
   els.travelStatus.textContent = state.settings.travelModeEnabled
-    ? `${currency.flag} ${currency.code} · ${activeItems.length} 筆`
+    ? `${currency.code} · ${activeItems.length} 筆`
     : `${state.trips.length} 次旅行`;
   els.travelRateLabel.textContent = currency.code === "TWD"
     ? "1 TWD = NT$1"
@@ -410,37 +391,169 @@ function renderTravelSettings() {
 }
 
 function renderConverter() {
-  const amount = Number(state.settings.converterAmount || 0);
+  const codes = selectedConverterCodes();
   const base = currencyInfoFor(state.settings.converterBase);
+  const amount = Number(state.settings.converterAmount || 0);
   const baseRate = twdRateFor(base.code);
-  const targetCodes = uniqueCodes([base.code, state.settings.travelCurrency, ...converterDefaultCodes]);
+  const available = travelCurrencies.filter((currency) => !codes.includes(currency.code));
 
-  els.converterAmount.value = state.settings.converterAmount || "";
-  els.converterBase.value = base.code;
-  els.converterStatus.textContent = state.converterMessage || `基準 ${base.code}`;
-  els.converterList.innerHTML = targetCodes
-    .filter((code) => code !== base.code)
-    .map((code) => {
-      const currency = currencyInfoFor(code);
-      const converted = amount > 0 ? (amount * baseRate) / twdRateFor(code) : 0;
-      return `
-        <div class="converter-row">
+  els.converterStatus.textContent = state.converterMessage || `基準 ${base.code} · ${codes.length} 幣別`;
+  els.converterList.innerHTML = codes.map((code, index) => {
+    const currency = currencyInfoFor(code);
+    const isBase = code === base.code;
+    const converted = isBase ? amount : amount > 0 ? (amount * baseRate) / twdRateFor(code) : 0;
+    return `
+      <div class="converter-row ${isBase ? "base-row" : ""}" data-code="${escapeAttr(code)}">
+        <div class="converter-meta">
+          ${currencyIconMarkup(currency, "currency-icon")}
           <div>
-            <strong>${currency.flag} ${currency.code}</strong>
-            <span>${escapeHtml(currency.name)}</span>
+            <strong>${escapeHtml(currency.name)}</strong>
+            <span class="currency-code-line">${escapeHtml(code)}${isBase ? " · 基準" : ""}</span>
           </div>
-          <strong>${formatForeignAmount(code, converted)}</strong>
         </div>
-      `;
-    }).join("");
+        <div class="converter-controls" aria-label="${escapeAttr(`${currency.name} 排序與刪除`)}">
+          <button class="row-tool" data-move="up" data-code="${escapeAttr(code)}" type="button" ${index === 0 ? "disabled" : ""} aria-label="上移 ${escapeAttr(currency.name)}">↑</button>
+          <button class="row-tool" data-move="down" data-code="${escapeAttr(code)}" type="button" ${index === codes.length - 1 ? "disabled" : ""} aria-label="下移 ${escapeAttr(currency.name)}">↓</button>
+          <button class="row-tool danger-tool" data-remove="${escapeAttr(code)}" type="button" ${isBase || codes.length <= 2 ? "disabled" : ""} aria-label="刪除 ${escapeAttr(currency.name)}">×</button>
+        </div>
+        <label class="converter-input-wrap">
+          <span>${escapeHtml(currency.symbol)}</span>
+          <input
+            class="converter-input"
+            data-code="${escapeAttr(code)}"
+            inputmode="decimal"
+            autocomplete="off"
+            aria-label="${escapeAttr(`${currency.name}金額`)}"
+            value="${escapeAttr(isBase ? (state.settings.converterAmount || "") : formatConverterInput(code, converted))}"
+          >
+        </label>
+      </div>
+    `;
+  }).join("");
+
+  if (available.length) {
+    els.converterAddCurrency.innerHTML = available.map((currency) => `
+      <option value="${currency.code}">${currencyLabelText(currency)}</option>
+    `).join("");
+    els.converterAddCurrency.disabled = false;
+    els.addConverterCurrency.disabled = false;
+  } else {
+    els.converterAddCurrency.innerHTML = `<option value="">已加入所有幣別</option>`;
+    els.converterAddCurrency.disabled = true;
+    els.addConverterCurrency.disabled = true;
+  }
+
+  bindConverterRows();
+}
+
+function bindConverterRows() {
+  $$(".converter-input").forEach((input) => {
+    input.addEventListener("focus", () => setConverterBase(input.dataset.code));
+    input.addEventListener("input", () => handleConverterInput(input));
+  });
+
+  $$("[data-move]").forEach((button) => {
+    button.addEventListener("click", () => moveConverterCurrency(button.dataset.code, button.dataset.move));
+  });
+
+  $$("[data-remove]").forEach((button) => {
+    button.addEventListener("click", () => removeConverterCurrency(button.dataset.remove));
+  });
+}
+
+function handleConverterInput(input) {
+  const code = currencyInfoFor(input.dataset.code).code;
+  const normalized = normalizeConverterText(input.value);
+  input.value = normalized;
+  state.settings.converterBase = code;
+  state.settings.converterAmount = normalized;
+  saveSettings();
+  updateConverterBaseState();
+  updateConverterAmounts();
+}
+
+function setConverterBase(code) {
+  const next = currencyInfoFor(code).code;
+  if (state.settings.converterBase === next) return;
+  const input = document.querySelector(`.converter-input[data-code="${cssEscape(next)}"]`);
+  state.settings.converterBase = next;
+  state.settings.converterAmount = normalizeConverterText(input?.value || "1");
+  saveSettings();
+  updateConverterBaseState();
+  updateConverterAmounts();
+}
+
+function updateConverterBaseState() {
+  const base = currencyInfoFor(state.settings.converterBase).code;
+  const codes = selectedConverterCodes();
+  els.converterStatus.textContent = state.converterMessage || `基準 ${base} · ${codes.length} 幣別`;
+  $$(".converter-row").forEach((row) => {
+    const isBase = row.dataset.code === base;
+    const currency = currencyInfoFor(row.dataset.code);
+    row.classList.toggle("base-row", isBase);
+    const codeLine = row.querySelector(".currency-code-line");
+    if (codeLine) codeLine.textContent = `${currency.code}${isBase ? " · 基準" : ""}`;
+    const remove = row.querySelector("[data-remove]");
+    if (remove) remove.disabled = isBase || codes.length <= 2;
+  });
+}
+
+function updateConverterAmounts() {
+  const base = currencyInfoFor(state.settings.converterBase).code;
+  const amount = Number(state.settings.converterAmount || 0);
+  const baseRate = twdRateFor(base);
+  $$(".converter-input").forEach((input) => {
+    const code = currencyInfoFor(input.dataset.code).code;
+    if (code === base) return;
+    const converted = amount > 0 ? (amount * baseRate) / twdRateFor(code) : 0;
+    input.value = formatConverterInput(code, converted);
+  });
+}
+
+function addSelectedConverterCurrency() {
+  const code = currencyInfoFor(els.converterAddCurrency.value).code;
+  if (!code) return;
+  const codes = selectedConverterCodes();
+  if (codes.includes(code)) return;
+  state.settings.converterCurrencies = [...codes, code];
+  saveSettings();
+  refreshConverterRates(false);
+  renderConverter();
+}
+
+function moveConverterCurrency(code, direction) {
+  const codes = selectedConverterCodes();
+  const index = codes.indexOf(currencyInfoFor(code).code);
+  if (index < 0) return;
+  const nextIndex = direction === "up" ? index - 1 : index + 1;
+  if (nextIndex < 0 || nextIndex >= codes.length) return;
+  const next = [...codes];
+  [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+  state.settings.converterCurrencies = next;
+  saveSettings();
+  renderConverter();
+}
+
+function removeConverterCurrency(code) {
+  const target = currencyInfoFor(code).code;
+  const codes = selectedConverterCodes();
+  if (target === state.settings.converterBase || codes.length <= 2) return;
+  state.settings.converterCurrencies = codes.filter((item) => item !== target);
+  saveSettings();
+  renderConverter();
 }
 
 function renderNotificationSettings() {
   const supported = "Notification" in window;
   const permission = supported ? Notification.permission : "unsupported";
+  const granted = permission === "granted";
+  const locked = granted || permission === "denied" || permission === "unsupported";
   els.reminderEnabled.checked = Boolean(state.settings.reminderEnabled);
   els.reminderTime.value = state.settings.reminderTime || "21:00";
   els.notificationStatus.textContent = notificationStatusText(permission);
+  els.requestNotification.disabled = locked;
+  els.requestNotification.classList.toggle("success-action", granted);
+  els.requestNotification.textContent = granted ? "✅ 已允許" : permission === "denied" ? "通知已封鎖" : supported ? "允許通知" : "不支援通知";
 }
 
 function updateDataManagement() {
@@ -517,7 +630,7 @@ async function refreshRatesForSettings(force) {
 
 async function refreshConverterRates(force) {
   const base = currencyInfoFor(state.settings.converterBase).code;
-  const targetCodes = uniqueCodes([base, state.settings.travelCurrency, ...converterDefaultCodes]);
+  const targetCodes = selectedConverterCodes();
   state.converterMessage = "匯率更新中";
   els.refreshConverterRates.disabled = true;
   renderConverter();
@@ -1361,11 +1474,9 @@ function formatDateTime(value) {
 }
 
 function formatCurrency(value) {
-  return new Intl.NumberFormat("zh-TW", {
-    style: "currency",
-    currency: "TWD",
+  return `NT$${new Intl.NumberFormat("zh-TW", {
     maximumFractionDigits: 0
-  }).format(value || 0);
+  }).format(value || 0)}`;
 }
 
 function formatTwdRate(value) {
@@ -1377,12 +1488,10 @@ function formatTwdRate(value) {
 }
 
 function compactCurrency(value) {
-  return new Intl.NumberFormat("zh-TW", {
-    style: "currency",
-    currency: "TWD",
+  return `NT$${new Intl.NumberFormat("zh-TW", {
     notation: "compact",
     maximumFractionDigits: 1
-  }).format(value || 0);
+  }).format(value || 0)}`;
 }
 
 function formatForeignAmount(code, value) {
@@ -1403,6 +1512,41 @@ function currencyInfoFor(code) {
   return travelCurrencies.find((currency) => currency.code === code) || travelCurrencies[0];
 }
 
+function currencyLabelText(currency) {
+  return `${currency.flag} ${currency.code} ${currency.name}`;
+}
+
+function currencyIconMarkup(currency, className = "currency-icon") {
+  if (currency.code === "TWD") {
+    return `
+      <span class="${className} twd-flag" aria-hidden="true">
+        <span class="twd-canton"><span class="twd-sun"></span></span>
+      </span>
+    `;
+  }
+  return `<span class="${className}" aria-hidden="true">${escapeHtml(currency.flag)}</span>`;
+}
+
+function iconMarkup(option) {
+  if (option.image) {
+    return `<img src="${escapeAttr(option.image)}" alt="" width="40" height="40">`;
+  }
+  return `<span>${escapeHtml(option.symbol || "i")}</span>`;
+}
+
+function selectedConverterCodes() {
+  const raw = Array.isArray(state.settings.converterCurrencies)
+    ? state.settings.converterCurrencies
+    : String(state.settings.converterCurrencies || "").split(",");
+  let codes = uniqueCodes(raw.length ? raw : converterDefaultCodes).filter(Boolean);
+  if (codes.length < 2) codes = uniqueCodes(converterDefaultCodes);
+  if (!codes.includes(state.settings.converterBase)) {
+    state.settings.converterBase = codes[0] || "TWD";
+  }
+  state.settings.converterCurrencies = codes;
+  return codes;
+}
+
 function uniqueCodes(codes) {
   return Array.from(new Set(codes.map((code) => currencyInfoFor(code).code)));
 }
@@ -1416,6 +1560,14 @@ function timeShort(date) {
 
 function roundMoney(value) {
   return Math.round((Number(value) || 0) * 100) / 100;
+}
+
+function formatConverterInput(code, value) {
+  const digits = ["JPY", "KRW", "VND", "IDR"].includes(currencyInfoFor(code).code) ? 0 : 2;
+  return new Intl.NumberFormat("zh-TW", {
+    maximumFractionDigits: digits,
+    minimumFractionDigits: 0
+  }).format(Number(value) || 0);
 }
 
 function formatAmountForDisplay(value) {
@@ -1438,6 +1590,21 @@ function normalizeAmountText(value) {
   if (next.startsWith(".")) next = `0${next}`;
   const [integer, decimal] = next.split(".");
   return decimal !== undefined ? `${integer}.${decimal.slice(0, 2)}` : integer;
+}
+
+function normalizeConverterText(value) {
+  let next = String(value).replace(/[^\d.]/g, "");
+  const parts = next.split(".");
+  if (parts.length > 2) next = `${parts[0]}.${parts.slice(1).join("")}`;
+  next = next.replace(/^0+(?=\d)/, "");
+  if (next.startsWith(".")) next = `0${next}`;
+  const [integer, decimal] = next.split(".");
+  const whole = integer.slice(0, 12);
+  return decimal !== undefined ? `${whole}.${decimal.slice(0, 4)}` : whole;
+}
+
+function cssEscape(value) {
+  return window.CSS?.escape ? CSS.escape(value) : String(value).replace(/["\\]/g, "\\$&");
 }
 
 function toLocalInputValue(date) {
@@ -1498,7 +1665,10 @@ function normalizeSettings(value) {
     travelSessionId: String(value.travelSessionId || ""),
     travelStartedAt: String(value.travelStartedAt || ""),
     converterBase: currencyInfoFor(value.converterBase || "TWD").code,
-    converterAmount: normalizeAmountText(String(value.converterAmount || "1000"))
+    converterAmount: normalizeConverterText(String(value.converterAmount || "1000")),
+    converterCurrencies: uniqueCodes(Array.isArray(value.converterCurrencies)
+      ? value.converterCurrencies
+      : String(value.converterCurrencies || converterDefaultCodes.join(",")).split(","))
   };
 }
 
@@ -1566,7 +1736,7 @@ function saveRateCache() {
 function createBackupPayload() {
   return {
     app: "i 記帳 PWA",
-    version: 4,
+    version: 5,
     exportedAt: new Date().toISOString(),
     expenses: state.expenses,
     settings: state.settings,

@@ -1,13 +1,14 @@
-const CACHE_NAME = "i-expense-pwa-v7";
+const CACHE_NAME = "i-expense-pwa-v9";
 const CORE_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=7",
-  "./app.js?v=7",
+  "./styles.css?v=9",
+  "./app.js?v=9",
   "./manifest.webmanifest",
   "./CHANGELOG.md",
   "./assets/icon-192.png",
   "./assets/icon-512.png",
+  "./assets/icon-1024.png",
   "./assets/apple-touch-icon.png",
   "./assets/app-icon-cat.png"
 ];

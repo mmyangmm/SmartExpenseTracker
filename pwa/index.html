@@ -10,7 +10,7 @@
     <title>i 記帳</title>
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
-    <link rel="stylesheet" href="./styles.css?v=7">
+    <link rel="stylesheet" href="./styles.css?v=9">
   </head>
   <body>
     <div class="app-shell">
@@ -169,7 +169,7 @@
                   <span aria-hidden="true"></span>
                 </label>
               </div>
-              <div class="settings-control-row">
+              <div class="settings-control-row reminder-time-row">
                 <label for="reminderTime">提醒時間</label>
                 <input id="reminderTime" type="time" value="21:00">
               </div>
@@ -177,6 +177,31 @@
                 <button class="settings-action" id="requestNotification" type="button">允許通知</button>
                 <button class="settings-action" id="testNotification" type="button">測試通知</button>
               </div>
+            </section>
+
+            <section class="settings-card" aria-labelledby="cloudSyncTitle">
+              <div class="settings-card-head">
+                <div>
+                  <h3 id="cloudSyncTitle">雲端同步</h3>
+                  <span id="cloudSyncStatus"></span>
+                </div>
+                <label class="switch">
+                  <input id="cloudSyncEnabled" type="checkbox" aria-label="開啟雲端同步">
+                  <span aria-hidden="true"></span>
+                </label>
+              </div>
+              <label class="settings-field">
+                <span>同步端點</span>
+                <input id="cloudSyncUrl" type="url" inputmode="url" autocomplete="url" placeholder="https://...">
+              </label>
+              <label class="settings-field">
+                <span>存取權杖</span>
+                <input id="cloudSyncToken" type="password" autocomplete="off" placeholder="選填">
+              </label>
+              <div class="button-grid">
+                <button class="settings-action" id="syncNow" type="button">立即同步</button>
+              </div>
+              <p class="settings-note">設定或記帳資料變更後會自動送出備份。靜態 PWA 不會內建任何私密金鑰。</p>
             </section>
 
             <section class="settings-card" aria-labelledby="dataTitle">
@@ -300,17 +325,23 @@
             <button type="button" class="calc-key delete-key" data-key="delete" aria-label="刪除一位">⌫</button>
           </div>
           <div class="action-row">
-            <button type="button" class="action-key scan-key" id="scanReceipt">
-              <span aria-hidden="true">▣</span>
-              <strong>掃描</strong>
+            <button type="button" class="action-key scan-key icon-action" id="scanReceipt" aria-label="掃描收據">
+              <span class="action-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M9 6l1.3-2h3.4L15 6h3.5A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5v-8A2.5 2.5 0 0 1 5.5 6H9z"/><circle cx="12" cy="12.5" r="3.2"/></svg>
+              </span>
             </button>
-            <button type="submit" class="action-key save-key" id="saveEntry">
-              <span aria-hidden="true">✓</span>
+            <button type="submit" class="action-key save-key" id="saveEntry" aria-label="儲存記帳">
+              <span class="action-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7"/></svg>
+              </span>
               <strong>儲存</strong>
             </button>
-            <button type="button" class="action-key mic-key" id="voiceButton">
-              <span aria-hidden="true" id="voiceIcon">●</span>
-              <strong id="voiceLabel">語音</strong>
+            <button type="button" class="action-key mic-key icon-action" id="voiceButton" aria-label="語音記帳">
+              <span class="action-icon voice-icon" aria-hidden="true" id="voiceIcon">
+                <svg class="voice-symbol mic-symbol" viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z"/><path d="M19 11a7 7 0 0 1-14 0"/><path d="M12 18v3"/><path d="M8.5 21h7"/></svg>
+                <svg class="voice-symbol stop-symbol" viewBox="0 0 24 24"><path d="M8 8h8v8H8z"/></svg>
+              </span>
+              <strong id="voiceLabel" class="sr-only">語音記帳</strong>
             </button>
           </div>
         </div>
@@ -327,6 +358,6 @@
       </div>
     </template>
 
-    <script src="./app.js?v=7" type="module"></script>
+    <script src="./app.js?v=9" type="module"></script>
   </body>
 </html>

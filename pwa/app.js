@@ -5,6 +5,8 @@ const RATE_CACHE_KEY = "i-expense-pwa-rates-v1";
 const DEFAULT_THEME_COLOR = "#ff6b9d";
 
 let reminderTimer = null;
+let cloudSyncTimer = null;
+let cloudSyncInFlight = false;
 
 const categories = [
   { id: "food", name: "餐飲", type: "expense", emoji: "🍜", color: "#ff6b6b", keywords: ["午餐", "早餐", "晚餐", "飯", "食", "吃", "餐廳", "便當", "麵", "小吃", "夜市", "火鍋", "壽司", "拉麵", "漢堡", "pizza"] },
@@ -87,11 +89,10 @@ const themeOptions = [
 ];
 
 const iconOptions = [
-  { id: "default", name: "經典", symbol: "i", bg: "linear-gradient(135deg, #ff6b9d, #f06f3f)" },
-  { id: "coin", name: "金幣", symbol: "$", bg: "linear-gradient(135deg, #f8b64c, #e56d46)" },
-  { id: "travel", name: "旅行", symbol: "✈", bg: "linear-gradient(135deg, #2f8edb, #14a38b)" },
   { id: "cat", name: "貓咪", image: "./assets/app-icon-cat.png", bg: "linear-gradient(135deg, #2dd4bf, #ff7aa8)" },
-  { id: "night", name: "夜間", symbol: "月", bg: "linear-gradient(135deg, #20242d, #7a50d6)" }
+  { id: "classic", name: "經典", symbol: "i", bg: "linear-gradient(135deg, #ff6b9d, #f06f3f)" },
+  { id: "coin", name: "金幣", symbol: "$", bg: "linear-gradient(135deg, #f8b64c, #e56d46)" },
+  { id: "travel", name: "旅行", symbol: "✈", bg: "linear-gradient(135deg, #2f8edb, #14a38b)" }
 ];
 
 const converterDefaultCodes = ["TWD", "USD", "JPY", "EUR", "CNY", "HKD", "KRW", "THB"];
@@ -113,7 +114,8 @@ const state = {
   isScanning: false,
   activeEntryCurrency: null,
   converterMessage: "",
-  travelMessage: ""
+  travelMessage: "",
+  cloudSyncMessage: ""
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -179,6 +181,11 @@ const els = {
   requestNotification: $("#requestNotification"),
   testNotification: $("#testNotification"),
   notificationStatus: $("#notificationStatus"),
+  cloudSyncEnabled: $("#cloudSyncEnabled"),
+  cloudSyncUrl: $("#cloudSyncUrl"),
+  cloudSyncToken: $("#cloudSyncToken"),
+  cloudSyncStatus: $("#cloudSyncStatus"),
+  syncNow: $("#syncNow"),
   dataCount: $("#dataCount"),
   copyJson: $("#copyJson")
 };
@@ -274,6 +281,24 @@ function bindEvents() {
     renderNotificationSettings();
     scheduleReminder();
   });
+  els.cloudSyncEnabled.addEventListener("change", () => {
+    state.settings.cloudSyncEnabled = els.cloudSyncEnabled.checked;
+    saveSettings();
+    renderCloudSyncSettings();
+    queueCloudSync("settings");
+  });
+  els.cloudSyncUrl.addEventListener("change", () => {
+    state.settings.cloudSyncUrl = els.cloudSyncUrl.value.trim();
+    saveSettings();
+    renderCloudSyncSettings();
+    queueCloudSync("settings");
+  });
+  els.cloudSyncToken.addEventListener("change", () => {
+    state.settings.cloudSyncToken = els.cloudSyncToken.value.trim();
+    saveSettings();
+    renderCloudSyncSettings();
+  });
+  els.syncNow.addEventListener("click", () => performCloudSync("manual", true));
   els.requestNotification.addEventListener("click", requestNotificationPermission);
   els.testNotification.addEventListener("click", () => showReminderNotification(true));
   $("#exportJson").addEventListener("click", exportJson);
@@ -315,6 +340,7 @@ function renderSettings() {
   renderTravelSettings();
   renderConverter();
   renderNotificationSettings();
+  renderCloudSyncSettings();
   updateDataManagement();
 }
 
@@ -342,7 +368,7 @@ function renderThemeSettings() {
 
 function renderIconSettings() {
   const icon = validIconId(state.settings.icon);
-  const iconName = iconOptions.find((option) => option.id === icon)?.name || "經典";
+  const iconName = iconOptions.find((option) => option.id === icon)?.name || "貓咪";
   els.iconSummary.textContent = iconName;
 
   els.iconOptions.innerHTML = iconOptions.map((option) => `
@@ -554,6 +580,73 @@ function renderNotificationSettings() {
   els.requestNotification.disabled = locked;
   els.requestNotification.classList.toggle("success-action", granted);
   els.requestNotification.textContent = granted ? "✅ 已允許" : permission === "denied" ? "通知已封鎖" : supported ? "允許通知" : "不支援通知";
+}
+
+function renderCloudSyncSettings() {
+  const enabled = Boolean(state.settings.cloudSyncEnabled);
+  const hasUrl = Boolean(state.settings.cloudSyncUrl);
+  els.cloudSyncEnabled.checked = enabled;
+  els.cloudSyncUrl.value = state.settings.cloudSyncUrl || "";
+  els.cloudSyncToken.value = state.settings.cloudSyncToken || "";
+  els.syncNow.disabled = !hasUrl || cloudSyncInFlight;
+  if (cloudSyncInFlight) {
+    els.cloudSyncStatus.textContent = "同步中";
+  } else if (state.cloudSyncMessage) {
+    els.cloudSyncStatus.textContent = state.cloudSyncMessage;
+  } else if (!hasUrl) {
+    els.cloudSyncStatus.textContent = "尚未設定端點";
+  } else if (state.settings.cloudSyncLastAt) {
+    els.cloudSyncStatus.textContent = `上次同步 ${timeShort(new Date(state.settings.cloudSyncLastAt))}`;
+  } else {
+    els.cloudSyncStatus.textContent = enabled ? "自動同步已開啟" : "可手動同步";
+  }
+}
+
+function queueCloudSync(reason) {
+  if (!state.settings.cloudSyncEnabled || !state.settings.cloudSyncUrl) {
+    renderCloudSyncSettings();
+    return;
+  }
+  if (cloudSyncTimer) window.clearTimeout(cloudSyncTimer);
+  cloudSyncTimer = window.setTimeout(() => performCloudSync(reason, false), 900);
+}
+
+async function performCloudSync(reason, manual) {
+  if (!state.settings.cloudSyncUrl) {
+    state.cloudSyncMessage = "請先設定端點";
+    renderCloudSyncSettings();
+    return;
+  }
+  if (cloudSyncInFlight) return;
+
+  cloudSyncInFlight = true;
+  state.cloudSyncMessage = "同步中";
+  renderCloudSyncSettings();
+
+  try {
+    const headers = { "Content-Type": "application/json" };
+    if (state.settings.cloudSyncToken) {
+      headers.Authorization = `Bearer ${state.settings.cloudSyncToken}`;
+    }
+    const response = await fetch(state.settings.cloudSyncUrl, {
+      method: "POST",
+      mode: "cors",
+      headers,
+      body: JSON.stringify({
+        reason,
+        ...createBackupPayload()
+      })
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    state.settings.cloudSyncLastAt = new Date().toISOString();
+    state.cloudSyncMessage = `已同步 ${timeShort(new Date())}`;
+    saveSettings({ sync: false });
+  } catch {
+    state.cloudSyncMessage = manual ? "同步失敗，請檢查端點" : "自動同步失敗";
+  } finally {
+    cloudSyncInFlight = false;
+    renderCloudSyncSettings();
+  }
 }
 
 function updateDataManagement() {
@@ -1252,8 +1345,8 @@ function parseVoiceTranscript() {
 
 function renderVoiceStatus() {
   els.voiceButton.classList.toggle("recording", state.isRecording);
-  els.voiceIcon.textContent = state.isRecording ? "■" : "●";
-  els.voiceLabel.textContent = state.isRecording ? "停止" : "語音";
+  els.voiceButton.setAttribute("aria-label", state.isRecording ? "停止語音辨識" : "語音記帳");
+  els.voiceLabel.textContent = state.isRecording ? "停止語音辨識" : "語音記帳";
   const message = state.voiceMessage || state.voiceTranscript;
   els.voiceBanner.hidden = !message;
   els.voiceBanner.textContent = message ? `${state.isRecording ? "◌" : "✓"} ${message}` : "";
@@ -1680,7 +1773,11 @@ function normalizeSettings(value) {
     converterAmount: normalizeConverterText(String(value.converterAmount || "1000")),
     converterCurrencies: uniqueCodes(Array.isArray(value.converterCurrencies)
       ? value.converterCurrencies
-      : String(value.converterCurrencies || converterDefaultCodes.join(",")).split(","))
+      : String(value.converterCurrencies || converterDefaultCodes.join(",")).split(",")),
+    cloudSyncEnabled: Boolean(value.cloudSyncEnabled),
+    cloudSyncUrl: String(value.cloudSyncUrl || ""),
+    cloudSyncToken: String(value.cloudSyncToken || ""),
+    cloudSyncLastAt: String(value.cloudSyncLastAt || "")
   };
 }
 
@@ -1689,7 +1786,7 @@ function validThemeId(value) {
 }
 
 function validIconId(value) {
-  return iconOptions.some((option) => option.id === value) ? value : "default";
+  return iconOptions.some((option) => option.id === value) ? value : "cat";
 }
 
 function loadTrips() {
@@ -1731,14 +1828,18 @@ function normalizeExpenseRecord(item) {
 
 function persist() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.expenses));
+  queueCloudSync("expenses");
 }
 
-function saveSettings() {
+function saveSettings(options = {}) {
+  const { sync = true } = options;
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings));
+  if (sync) queueCloudSync("settings");
 }
 
 function saveTrips() {
   localStorage.setItem(TRIPS_KEY, JSON.stringify(state.trips));
+  queueCloudSync("trips");
 }
 
 function saveRateCache() {
@@ -1748,12 +1849,18 @@ function saveRateCache() {
 function createBackupPayload() {
   return {
     app: "i 記帳 PWA",
-    version: 5,
+    version: 6,
     exportedAt: new Date().toISOString(),
     expenses: state.expenses,
-    settings: state.settings,
+    settings: exportableSettings(),
     trips: state.trips
   };
+}
+
+function exportableSettings() {
+  const settings = { ...state.settings };
+  delete settings.cloudSyncToken;
+  return settings;
 }
 
 function exportJson() {
@@ -1810,7 +1917,9 @@ function importJson(event) {
         }));
       state.expenses = mergeExpenses(state.expenses, normalized);
       if (!Array.isArray(parsed) && parsed.settings) {
-        state.settings = normalizeSettings({ ...state.settings, ...parsed.settings });
+        const importedSettings = { ...parsed.settings };
+        delete importedSettings.cloudSyncToken;
+        state.settings = normalizeSettings({ ...state.settings, ...importedSettings });
         saveSettings();
         applySettings();
         populateCurrencySelects();

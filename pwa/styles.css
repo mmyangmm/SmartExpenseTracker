@@ -166,6 +166,10 @@ select:focus-visible {
   white-space: nowrap;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 .app-shell {
   width: 100%;
   max-width: 760px;
@@ -859,7 +863,8 @@ h1 {
 }
 
 .settings-control-row select,
-.settings-control-row input {
+.settings-control-row input,
+.settings-field input {
   min-width: 0;
   min-height: 44px;
   border: 1px solid var(--border);
@@ -867,6 +872,25 @@ h1 {
   background: var(--surface);
   color: var(--text);
   padding: 0 12px;
+}
+
+.reminder-time-row input {
+  flex: 0 0 152px;
+  width: 152px;
+  text-align: center;
+}
+
+.settings-field {
+  display: grid;
+  gap: 7px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+.settings-field span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .mini-button,
@@ -1471,23 +1495,47 @@ dialog::backdrop {
 .action-key {
   min-height: 56px;
   display: grid;
+  grid-template-rows: 24px auto;
   place-items: center;
-  gap: 2px;
+  gap: 4px;
   color: #fff;
   box-shadow: 0 8px 16px rgb(217 54 114 / 15%);
 }
 
-.action-key span {
-  font-size: 20px;
+.action-key.icon-action {
+  grid-template-rows: 1fr;
+}
+
+.action-icon {
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
   line-height: 1;
 }
 
-.action-key strong {
+.icon-action .action-icon {
+  width: 29px;
+  height: 29px;
+}
+
+.action-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.4;
+}
+
+.action-key strong:not(.sr-only) {
   font-size: 12px;
 }
 
 .scan-key {
-  background: linear-gradient(135deg, #ff8e53, #ffd93d);
+  background: linear-gradient(135deg, #ff8e53, #f0b429);
 }
 
 .save-key {
@@ -1505,6 +1553,15 @@ dialog::backdrop {
 
 .mic-key.recording {
   background: linear-gradient(135deg, #ff3b30, var(--primary-bright));
+}
+
+.voice-symbol.stop-symbol,
+.mic-key.recording .voice-symbol.mic-symbol {
+  display: none;
+}
+
+.mic-key.recording .voice-symbol.stop-symbol {
+  display: block;
 }
 
 @media (max-width: 560px) {
@@ -1569,6 +1626,10 @@ dialog::backdrop {
   .settings-control-row input,
   .mini-button {
     width: 100%;
+  }
+
+  .reminder-time-row input {
+    flex-basis: auto;
   }
 
   .converter-add-row {

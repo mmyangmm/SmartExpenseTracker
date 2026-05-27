@@ -10,20 +10,21 @@
     <title>i 記帳</title>
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
-    <link rel="stylesheet" href="./styles.css?v=3">
+    <link rel="stylesheet" href="./styles.css?v=4">
   </head>
   <body>
     <div class="app-shell">
       <header class="topbar">
         <div class="brand">
-          <img src="./assets/icon-192.png" alt="" width="42" height="42">
+          <span class="brand-icon" id="brandIcon" aria-hidden="true">i</span>
           <div>
             <h1>i 記帳</h1>
             <p id="todayLabel"></p>
           </div>
         </div>
-        <button class="icon-button install-button" id="installButton" type="button" hidden aria-label="安裝">
+        <button class="install-button" id="installButton" type="button" hidden aria-label="安裝 PWA">
           <span aria-hidden="true">↓</span>
+          <strong>安裝</strong>
         </button>
       </header>
 
@@ -100,24 +101,112 @@
           <div class="section-heading settings-title">
             <h2 id="settingsTitle">設定</h2>
           </div>
-          <section class="settings-list">
-            <button id="exportJson" class="settings-row" type="button">
-              <span>匯出備份</span>
-              <strong>JSON</strong>
-            </button>
-            <button id="exportCsv" class="settings-row" type="button">
-              <span>匯出表格</span>
-              <strong>CSV</strong>
-            </button>
-            <label class="settings-row file-row">
-              <span>匯入備份</span>
-              <strong>JSON</strong>
-              <input id="importJson" type="file" accept="application/json,.json">
-            </label>
-            <button id="clearData" class="settings-row danger-row" type="button">
-              <span>清除資料</span>
-              <strong>全部</strong>
-            </button>
+          <section class="settings-stack">
+            <section class="settings-card" aria-labelledby="appearanceTitle">
+              <div class="settings-card-head">
+                <div>
+                  <h3 id="appearanceTitle">外觀</h3>
+                  <span id="appearanceSummary"></span>
+                </div>
+              </div>
+              <div class="option-grid theme-options" id="themeOptions" aria-label="主題色彩"></div>
+              <div class="option-grid icon-options" id="iconOptions" aria-label="App 圖示"></div>
+            </section>
+
+            <section class="settings-card" aria-labelledby="travelTitle">
+              <div class="settings-card-head">
+                <div>
+                  <h3 id="travelTitle">出國模式</h3>
+                  <span id="travelStatus"></span>
+                </div>
+                <label class="switch">
+                  <input id="travelModeEnabled" type="checkbox" aria-label="開啟出國模式">
+                  <span aria-hidden="true"></span>
+                </label>
+              </div>
+              <div class="settings-control-row">
+                <label for="travelCurrency">記帳幣別</label>
+                <select id="travelCurrency"></select>
+              </div>
+              <div class="settings-control-row">
+                <span id="travelRateLabel">匯率待更新</span>
+                <button class="mini-button" id="refreshTravelRate" type="button">更新</button>
+              </div>
+            </section>
+
+            <section class="settings-card" aria-labelledby="converterTitle">
+              <div class="settings-card-head">
+                <div>
+                  <h3 id="converterTitle">換匯</h3>
+                  <span id="converterStatus"></span>
+                </div>
+                <button class="mini-button" id="refreshConverterRates" type="button">更新</button>
+              </div>
+              <div class="converter-form">
+                <label>
+                  <span>金額</span>
+                  <input id="converterAmount" inputmode="decimal" autocomplete="off" value="1000">
+                </label>
+                <label>
+                  <span>基準</span>
+                  <select id="converterBase"></select>
+                </label>
+              </div>
+              <div class="converter-list" id="converterList"></div>
+            </section>
+
+            <section class="settings-card" aria-labelledby="reminderTitle">
+              <div class="settings-card-head">
+                <div>
+                  <h3 id="reminderTitle">通知提醒</h3>
+                  <span id="notificationStatus"></span>
+                </div>
+                <label class="switch">
+                  <input id="reminderEnabled" type="checkbox" aria-label="開啟通知提醒">
+                  <span aria-hidden="true"></span>
+                </label>
+              </div>
+              <div class="settings-control-row">
+                <label for="reminderTime">提醒時間</label>
+                <input id="reminderTime" type="time" value="21:00">
+              </div>
+              <div class="button-grid">
+                <button class="settings-action" id="requestNotification" type="button">允許通知</button>
+                <button class="settings-action" id="testNotification" type="button">測試通知</button>
+              </div>
+            </section>
+
+            <section class="settings-card" aria-labelledby="dataTitle">
+              <div class="settings-card-head">
+                <div>
+                  <h3 id="dataTitle">資料管理</h3>
+                  <span id="dataCount"></span>
+                </div>
+              </div>
+              <div class="settings-list">
+                <button id="exportJson" class="settings-row" type="button">
+                  <span>匯出備份</span>
+                  <strong>JSON</strong>
+                </button>
+                <button id="copyJson" class="settings-row" type="button">
+                  <span>複製備份</span>
+                  <strong>剪貼簿</strong>
+                </button>
+                <button id="exportCsv" class="settings-row" type="button">
+                  <span>匯出表格</span>
+                  <strong>CSV</strong>
+                </button>
+                <label class="settings-row file-row">
+                  <span>匯入備份</span>
+                  <strong>JSON</strong>
+                  <input id="importJson" type="file" accept="application/json,.json">
+                </label>
+                <button id="clearData" class="settings-row danger-row" type="button">
+                  <span>清除資料</span>
+                  <strong>全部</strong>
+                </button>
+              </div>
+            </section>
           </section>
         </section>
       </main>
@@ -167,9 +256,10 @@
           <section class="amount-card" aria-live="polite">
             <div class="amount-type">
               <span id="amountSign" aria-hidden="true">−</span>
-              <span>NT$</span>
+              <span id="currencySymbol">NT$</span>
             </div>
             <strong id="amountDisplay">0</strong>
+            <p class="amount-hint" id="twdHint" hidden></p>
             <p class="field-error" id="amountError" hidden>請輸入金額</p>
           </section>
 
@@ -241,6 +331,6 @@
       </div>
     </template>
 
-    <script src="./app.js?v=3" type="module"></script>
+    <script src="./app.js?v=4" type="module"></script>
   </body>
 </html>

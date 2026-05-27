@@ -1,4 +1,10 @@
 const STORAGE_KEY = "i-expense-pwa-v1";
+const SETTINGS_KEY = "i-expense-pwa-settings-v1";
+const TRIPS_KEY = "i-expense-pwa-trips-v1";
+const RATE_CACHE_KEY = "i-expense-pwa-rates-v1";
+const DEFAULT_THEME_COLOR = "#ff6b9d";
+
+let reminderTimer = null;
 
 const categories = [
   { id: "food", name: "餐飲", type: "expense", emoji: "🍜", color: "#ff6b6b", keywords: ["午餐", "早餐", "晚餐", "飯", "食", "吃", "餐廳", "便當", "麵", "小吃", "夜市", "火鍋", "壽司", "拉麵", "漢堡", "pizza"] },
@@ -31,8 +37,69 @@ const categories = [
   { id: "incomeOther", name: "其他收入", type: "income", emoji: "💵", color: "#9acd32", keywords: [] }
 ];
 
+const travelCurrencies = [
+  { code: "TWD", name: "新台幣", flag: "🇹🇼", symbol: "NT$" },
+  { code: "JPY", name: "日圓", flag: "🇯🇵", symbol: "¥" },
+  { code: "USD", name: "美元", flag: "🇺🇸", symbol: "$" },
+  { code: "EUR", name: "歐元", flag: "🇪🇺", symbol: "€" },
+  { code: "GBP", name: "英鎊", flag: "🇬🇧", symbol: "£" },
+  { code: "CHF", name: "瑞士法郎", flag: "🇨🇭", symbol: "CHF" },
+  { code: "HKD", name: "港幣", flag: "🇭🇰", symbol: "HK$" },
+  { code: "MOP", name: "澳門幣", flag: "🇲🇴", symbol: "MOP$" },
+  { code: "CNY", name: "人民幣", flag: "🇨🇳", symbol: "¥" },
+  { code: "KRW", name: "韓元", flag: "🇰🇷", symbol: "₩" },
+  { code: "SGD", name: "新加坡幣", flag: "🇸🇬", symbol: "S$" },
+  { code: "THB", name: "泰銖", flag: "🇹🇭", symbol: "฿" },
+  { code: "AUD", name: "澳幣", flag: "🇦🇺", symbol: "A$" },
+  { code: "CAD", name: "加幣", flag: "🇨🇦", symbol: "C$" },
+  { code: "MYR", name: "馬幣", flag: "🇲🇾", symbol: "RM" },
+  { code: "IDR", name: "印尼盾", flag: "🇮🇩", symbol: "Rp" },
+  { code: "PHP", name: "菲律賓披索", flag: "🇵🇭", symbol: "₱" },
+  { code: "VND", name: "越南盾", flag: "🇻🇳", symbol: "₫" }
+];
+
+const fallbackTwdRates = {
+  TWD: 1,
+  USD: 32.5,
+  JPY: 0.215,
+  EUR: 35.5,
+  GBP: 41.5,
+  CHF: 37.2,
+  HKD: 4.15,
+  SGD: 24.5,
+  CNY: 4.5,
+  KRW: 0.024,
+  THB: 0.91,
+  AUD: 21.5,
+  CAD: 23.5,
+  MYR: 7.3,
+  IDR: 0.0021,
+  PHP: 0.56,
+  VND: 0.0013,
+  MOP: 4.01
+};
+
+const themeOptions = [
+  { id: "pink", name: "蜜桃", color: "#ff6b9d", swatch: "linear-gradient(135deg, #ff6b9d, #f06f3f)" },
+  { id: "ocean", name: "海藍", color: "#2f8edb", swatch: "linear-gradient(135deg, #2f8edb, #14a38b)" },
+  { id: "matcha", name: "抹茶", color: "#54a45f", swatch: "linear-gradient(135deg, #54a45f, #d28b2f)" },
+  { id: "graphite", name: "黑曜", color: "#15171c", swatch: "linear-gradient(135deg, #f07aa7, #4d5f84)" }
+];
+
+const iconOptions = [
+  { id: "default", name: "經典", symbol: "i", bg: "linear-gradient(135deg, #ff6b9d, #f06f3f)" },
+  { id: "coin", name: "金幣", symbol: "$", bg: "linear-gradient(135deg, #f8b64c, #e56d46)" },
+  { id: "travel", name: "旅行", symbol: "✈", bg: "linear-gradient(135deg, #2f8edb, #14a38b)" },
+  { id: "night", name: "夜間", symbol: "月", bg: "linear-gradient(135deg, #20242d, #7a50d6)" }
+];
+
+const converterDefaultCodes = ["TWD", "USD", "JPY", "EUR", "CNY", "HKD", "KRW", "THB"];
+
 const state = {
   expenses: loadExpenses(),
+  settings: loadSettings(),
+  trips: loadTrips(),
+  rateCache: loadRateCache(),
   selectedMonth: startOfMonth(new Date()),
   currentTab: "home",
   statsMode: "category",
@@ -43,7 +110,10 @@ const state = {
   voiceMessage: "",
   shouldParseOnStop: false,
   scanMessage: "",
-  isScanning: false
+  isScanning: false,
+  activeEntryCurrency: null,
+  converterMessage: "",
+  travelMessage: ""
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -73,6 +143,8 @@ const els = {
   amountDisplay: $("#amountDisplay"),
   amountCard: $(".amount-card"),
   amountSign: $("#amountSign"),
+  currencySymbol: $("#currencySymbol"),
+  twdHint: $("#twdHint"),
   amountError: $("#amountError"),
   categoryInput: $("#categoryInput"),
   categoryGrid: $("#categoryGrid"),
@@ -87,7 +159,28 @@ const els = {
   scanReceipt: $("#scanReceipt"),
   receiptInput: $("#receiptInput"),
   scanBanner: $("#scanBanner"),
-  installButton: $("#installButton")
+  installButton: $("#installButton"),
+  brandIcon: $("#brandIcon"),
+  appearanceSummary: $("#appearanceSummary"),
+  themeOptions: $("#themeOptions"),
+  iconOptions: $("#iconOptions"),
+  travelModeEnabled: $("#travelModeEnabled"),
+  travelCurrency: $("#travelCurrency"),
+  travelRateLabel: $("#travelRateLabel"),
+  travelStatus: $("#travelStatus"),
+  refreshTravelRate: $("#refreshTravelRate"),
+  converterAmount: $("#converterAmount"),
+  converterBase: $("#converterBase"),
+  refreshConverterRates: $("#refreshConverterRates"),
+  converterList: $("#converterList"),
+  converterStatus: $("#converterStatus"),
+  reminderEnabled: $("#reminderEnabled"),
+  reminderTime: $("#reminderTime"),
+  requestNotification: $("#requestNotification"),
+  testNotification: $("#testNotification"),
+  notificationStatus: $("#notificationStatus"),
+  dataCount: $("#dataCount"),
+  copyJson: $("#copyJson")
 };
 
 init();
@@ -100,10 +193,15 @@ function init() {
     weekday: "long"
   }).format(new Date());
 
+  applySettings();
+  populateCurrencySelects();
   bindEvents();
   renderCategoryPicker();
   renderAmountDisplay();
+  renderSettings();
   render();
+  refreshRatesForSettings(false);
+  scheduleReminder();
   registerServiceWorker();
 }
 
@@ -158,7 +256,39 @@ function bindEvents() {
   els.scanReceipt.addEventListener("click", () => els.receiptInput.click());
   els.receiptInput.addEventListener("change", handleReceiptInput);
 
+  els.converterAmount.addEventListener("input", () => {
+    state.settings.converterAmount = normalizeAmountText(els.converterAmount.value);
+    els.converterAmount.value = state.settings.converterAmount;
+    saveSettings();
+    renderConverter();
+  });
+  els.converterBase.addEventListener("change", () => {
+    state.settings.converterBase = els.converterBase.value;
+    saveSettings();
+    refreshConverterRates(false);
+    renderConverter();
+  });
+  els.refreshConverterRates.addEventListener("click", () => refreshConverterRates(true));
+  els.refreshTravelRate.addEventListener("click", () => refreshTravelRate(true));
+  els.travelModeEnabled.addEventListener("change", () => toggleTravelMode(els.travelModeEnabled.checked));
+  els.travelCurrency.addEventListener("change", () => {
+    state.settings.travelCurrency = els.travelCurrency.value;
+    saveSettings();
+    renderSettings();
+    refreshTravelRate(false);
+    renderAmountDisplay();
+  });
+  els.reminderEnabled.addEventListener("change", () => updateReminderEnabled(els.reminderEnabled.checked));
+  els.reminderTime.addEventListener("change", () => {
+    state.settings.reminderTime = els.reminderTime.value || "21:00";
+    saveSettings();
+    renderNotificationSettings();
+    scheduleReminder();
+  });
+  els.requestNotification.addEventListener("click", requestNotificationPermission);
+  els.testNotification.addEventListener("click", () => showReminderNotification(true));
   $("#exportJson").addEventListener("click", exportJson);
+  els.copyJson.addEventListener("click", copyJson);
   $("#exportCsv").addEventListener("click", exportCsv);
   $("#importJson").addEventListener("change", importJson);
   $("#clearData").addEventListener("click", clearData);
@@ -181,6 +311,7 @@ function bindEvents() {
 function render() {
   renderHome();
   renderStats();
+  renderSettings();
   renderTabs();
 }
 
@@ -192,6 +323,341 @@ function renderTabs() {
     tab.setAttribute("aria-current", active ? "page" : "false");
   });
   $("#addButton").hidden = state.currentTab !== "home";
+}
+
+function populateCurrencySelects() {
+  const options = travelCurrencies.map((currency) => `
+    <option value="${currency.code}">${currency.flag} ${currency.code} ${currency.name}</option>
+  `).join("");
+  els.travelCurrency.innerHTML = options;
+  els.converterBase.innerHTML = options;
+}
+
+function renderSettings() {
+  renderAppearanceSettings();
+  renderTravelSettings();
+  renderConverter();
+  renderNotificationSettings();
+  updateDataManagement();
+}
+
+function renderAppearanceSettings() {
+  const theme = validThemeId(state.settings.theme);
+  const icon = validIconId(state.settings.icon);
+  const themeName = themeOptions.find((option) => option.id === theme)?.name || "蜜桃";
+  const iconName = iconOptions.find((option) => option.id === icon)?.name || "經典";
+  els.appearanceSummary.textContent = `${themeName} · ${iconName}`;
+
+  els.themeOptions.innerHTML = themeOptions.map((option) => `
+    <button class="option-button ${option.id === theme ? "selected" : ""}" type="button" data-theme="${option.id}" aria-pressed="${option.id === theme}">
+      <span class="swatch" style="background:${option.swatch}" aria-hidden="true"></span>
+      <span>${escapeHtml(option.name)}</span>
+    </button>
+  `).join("");
+
+  els.iconOptions.innerHTML = iconOptions.map((option) => `
+    <button class="option-button ${option.id === icon ? "selected" : ""}" type="button" data-icon="${option.id}" aria-pressed="${option.id === icon}">
+      <span class="icon-preview" style="background:${option.bg}" aria-hidden="true">${escapeHtml(option.symbol)}</span>
+      <span>${escapeHtml(option.name)}</span>
+    </button>
+  `).join("");
+
+  $$("#themeOptions [data-theme]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.settings.theme = button.dataset.theme;
+      saveSettings();
+      applySettings();
+      renderAppearanceSettings();
+    });
+  });
+
+  $$("#iconOptions [data-icon]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.settings.icon = button.dataset.icon;
+      saveSettings();
+      applySettings();
+      renderAppearanceSettings();
+    });
+  });
+}
+
+function applySettings() {
+  const theme = validThemeId(state.settings.theme);
+  const themeOption = themeOptions.find((option) => option.id === theme) || themeOptions[0];
+  const icon = iconOptions.find((option) => option.id === validIconId(state.settings.icon)) || iconOptions[0];
+  document.body.dataset.theme = theme;
+  document.body.style.setProperty("--app-icon-bg", icon.bg);
+  els.brandIcon.textContent = icon.symbol;
+
+  const themeMeta = document.querySelector("meta[name='theme-color']");
+  if (themeMeta) themeMeta.setAttribute("content", themeOption.color || DEFAULT_THEME_COLOR);
+}
+
+function renderTravelSettings() {
+  const currency = currencyInfoFor(state.settings.travelCurrency);
+  const rate = twdRateFor(currency.code);
+  const activeItems = state.settings.travelSessionId
+    ? state.expenses.filter((item) => item.travelSessionId === state.settings.travelSessionId)
+    : [];
+  els.travelModeEnabled.checked = Boolean(state.settings.travelModeEnabled);
+  els.travelCurrency.value = currency.code;
+  els.travelStatus.textContent = state.settings.travelModeEnabled
+    ? `${currency.flag} ${currency.code} · ${activeItems.length} 筆`
+    : `${state.trips.length} 次旅行`;
+  els.travelRateLabel.textContent = currency.code === "TWD"
+    ? "1 TWD = NT$1"
+    : `1 ${currency.code} ≈ ${formatTwdRate(rate)}${state.travelMessage ? ` · ${state.travelMessage}` : ""}`;
+}
+
+function renderConverter() {
+  const amount = Number(state.settings.converterAmount || 0);
+  const base = currencyInfoFor(state.settings.converterBase);
+  const baseRate = twdRateFor(base.code);
+  const targetCodes = uniqueCodes([base.code, state.settings.travelCurrency, ...converterDefaultCodes]);
+
+  els.converterAmount.value = state.settings.converterAmount || "";
+  els.converterBase.value = base.code;
+  els.converterStatus.textContent = state.converterMessage || `基準 ${base.code}`;
+  els.converterList.innerHTML = targetCodes
+    .filter((code) => code !== base.code)
+    .map((code) => {
+      const currency = currencyInfoFor(code);
+      const converted = amount > 0 ? (amount * baseRate) / twdRateFor(code) : 0;
+      return `
+        <div class="converter-row">
+          <div>
+            <strong>${currency.flag} ${currency.code}</strong>
+            <span>${escapeHtml(currency.name)}</span>
+          </div>
+          <strong>${formatForeignAmount(code, converted)}</strong>
+        </div>
+      `;
+    }).join("");
+}
+
+function renderNotificationSettings() {
+  const supported = "Notification" in window;
+  const permission = supported ? Notification.permission : "unsupported";
+  els.reminderEnabled.checked = Boolean(state.settings.reminderEnabled);
+  els.reminderTime.value = state.settings.reminderTime || "21:00";
+  els.notificationStatus.textContent = notificationStatusText(permission);
+}
+
+function updateDataManagement() {
+  const bytes = new Blob([JSON.stringify(createBackupPayload())]).size;
+  const kb = Math.max(1, Math.ceil(bytes / 1024));
+  els.dataCount.textContent = `${state.expenses.length} 筆 · ${state.trips.length} 次旅行 · ${kb} KB`;
+}
+
+function toggleTravelMode(enabled) {
+  const wasEnabled = Boolean(state.settings.travelModeEnabled);
+  state.settings.travelModeEnabled = enabled;
+
+  if (enabled && !wasEnabled) {
+    state.settings.travelSessionId = makeId();
+    state.settings.travelStartedAt = new Date().toISOString();
+  }
+
+  if (!enabled && wasEnabled) {
+    finishTravelSession();
+  }
+
+  saveSettings();
+  renderSettings();
+  renderAmountDisplay();
+  if (enabled) refreshTravelRate(false);
+}
+
+function finishTravelSession() {
+  const sessionId = state.settings.travelSessionId;
+  if (!sessionId) return;
+  const items = state.expenses.filter((item) => item.travelSessionId === sessionId);
+  if (items.length) {
+    const trip = {
+      id: sessionId,
+      startedAt: state.settings.travelStartedAt || items[items.length - 1].date,
+      endedAt: new Date().toISOString(),
+      currency: state.settings.travelCurrency,
+      count: items.length,
+      expenseTotal: sum(items.filter((item) => !item.isIncome)),
+      incomeTotal: sum(items.filter((item) => item.isIncome))
+    };
+    state.trips = [trip, ...state.trips.filter((item) => item.id !== sessionId)];
+    saveTrips();
+  }
+  state.settings.travelSessionId = "";
+  state.settings.travelStartedAt = "";
+}
+
+function activeTravelCurrency() {
+  return state.settings.travelModeEnabled ? currencyInfoFor(state.settings.travelCurrency).code : "TWD";
+}
+
+async function refreshTravelRate(force) {
+  const currency = currencyInfoFor(state.settings.travelCurrency);
+  state.travelMessage = "更新中";
+  renderTravelSettings();
+  try {
+    await fetchTwdRate(currency.code, force);
+    state.travelMessage = "已更新";
+  } catch {
+    state.travelMessage = "使用估算";
+  } finally {
+    renderTravelSettings();
+    renderAmountDisplay();
+  }
+}
+
+async function refreshRatesForSettings(force) {
+  await Promise.allSettled([
+    refreshTravelRate(force),
+    refreshConverterRates(force)
+  ]);
+}
+
+async function refreshConverterRates(force) {
+  const base = currencyInfoFor(state.settings.converterBase).code;
+  const targetCodes = uniqueCodes([base, state.settings.travelCurrency, ...converterDefaultCodes]);
+  state.converterMessage = "匯率更新中";
+  els.refreshConverterRates.disabled = true;
+  renderConverter();
+  try {
+    await Promise.all(targetCodes.map((code) => fetchTwdRate(code, force)));
+    state.converterMessage = `已更新 ${timeShort(new Date())}`;
+  } catch {
+    state.converterMessage = "使用離線估算";
+  } finally {
+    els.refreshConverterRates.disabled = false;
+    renderConverter();
+  }
+}
+
+async function fetchTwdRate(code, force = false) {
+  const currency = currencyInfoFor(code).code;
+  if (currency === "TWD") {
+    state.rateCache.TWD = { rate: 1, updatedAt: new Date().toISOString(), source: "base" };
+    saveRateCache();
+    return 1;
+  }
+
+  const cached = state.rateCache[currency];
+  const fresh = cached && Date.now() - new Date(cached.updatedAt).getTime() < 12 * 60 * 60 * 1000;
+  if (!force && fresh) return cached.rate;
+
+  try {
+    const response = await fetch(`https://open.er-api.com/v6/latest/${currency}`, { cache: force ? "reload" : "default" });
+    if (!response.ok) throw new Error("Rate fetch failed");
+    const payload = await response.json();
+    const rate = Number(payload?.rates?.TWD);
+    if (!Number.isFinite(rate) || rate <= 0) throw new Error("Missing TWD rate");
+    state.rateCache[currency] = { rate, updatedAt: new Date().toISOString(), source: "live" };
+    saveRateCache();
+    return rate;
+  } catch (error) {
+    const fallback = fallbackTwdRates[currency];
+    if (!Number.isFinite(fallback)) throw error;
+    state.rateCache[currency] = {
+      rate: fallback,
+      updatedAt: cached?.updatedAt || new Date().toISOString(),
+      source: "fallback"
+    };
+    saveRateCache();
+    return fallback;
+  }
+}
+
+function twdRateFor(code) {
+  const currency = currencyInfoFor(code).code;
+  return Number(state.rateCache[currency]?.rate || fallbackTwdRates[currency] || 1);
+}
+
+async function updateReminderEnabled(enabled) {
+  if (!enabled) {
+    state.settings.reminderEnabled = false;
+    saveSettings();
+    renderNotificationSettings();
+    scheduleReminder();
+    return;
+  }
+
+  const granted = await requestNotificationPermission();
+  state.settings.reminderEnabled = granted;
+  saveSettings();
+  renderNotificationSettings();
+  scheduleReminder();
+}
+
+async function requestNotificationPermission() {
+  if (!("Notification" in window)) {
+    state.settings.reminderEnabled = false;
+    saveSettings();
+    renderNotificationSettings();
+    return false;
+  }
+
+  if (Notification.permission === "granted") {
+    renderNotificationSettings();
+    return true;
+  }
+
+  if (Notification.permission === "denied") {
+    state.settings.reminderEnabled = false;
+    saveSettings();
+    renderNotificationSettings();
+    return false;
+  }
+
+  const permission = await Notification.requestPermission();
+  renderNotificationSettings();
+  return permission === "granted";
+}
+
+function scheduleReminder() {
+  if (reminderTimer) {
+    clearTimeout(reminderTimer);
+    reminderTimer = null;
+  }
+  if (!state.settings.reminderEnabled || !("Notification" in window) || Notification.permission !== "granted") return;
+
+  const next = nextReminderDate(state.settings.reminderTime || "21:00");
+  reminderTimer = window.setTimeout(() => {
+    showReminderNotification(false);
+    scheduleReminder();
+  }, next.getTime() - Date.now());
+}
+
+async function showReminderNotification(test) {
+  const granted = await requestNotificationPermission();
+  if (!granted) {
+    window.alert("通知尚未允許。");
+    return;
+  }
+
+  try {
+    new Notification(test ? "測試通知" : "記帳提醒", {
+      body: test ? "通知功能已可使用。" : "別忘了記錄今天的花費。",
+      icon: "./assets/icon-192.png",
+      badge: "./assets/icon-192.png"
+    });
+  } catch {
+    window.alert(test ? "通知功能已可使用。" : "別忘了記錄今天的花費。");
+  }
+}
+
+function notificationStatusText(permission) {
+  if (permission === "unsupported") return "此瀏覽器不支援";
+  if (permission === "denied") return "通知被封鎖";
+  if (state.settings.reminderEnabled && permission === "granted") return `每天 ${state.settings.reminderTime || "21:00"}`;
+  if (permission === "granted") return "已允許";
+  return "尚未允許";
+}
+
+function nextReminderDate(value) {
+  const [hour = "21", minute = "00"] = String(value).split(":");
+  const next = new Date();
+  next.setHours(Number(hour), Number(minute), 0, 0);
+  if (next.getTime() <= Date.now()) next.setDate(next.getDate() + 1);
+  return next;
 }
 
 function renderHome() {
@@ -250,12 +716,14 @@ function renderTransactions(items) {
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .map((item) => {
       const category = findCategory(item.category);
+      const travelCopy = travelAmountCopy(item);
+      const subline = `${formatDateTime(item.date)} · ${category.name}${travelCopy ? ` · ${travelCopy}` : ""}`;
       return `
         <button class="transaction-row" type="button" data-id="${escapeAttr(item.id)}" aria-label="${escapeAttr(`${item.note || category.name} ${formatCurrency(item.amount)}`)}">
           <span class="row-icon" style="background:${hexToSoft(category.color)}">${category.emoji}</span>
           <span class="row-main">
             <strong>${escapeHtml(item.note || category.name)}</strong>
-            <time>${formatDateTime(item.date)} · ${escapeHtml(category.name)}</time>
+            <time class="row-subline">${escapeHtml(subline)}</time>
           </span>
           <span class="row-amount ${item.isIncome ? "income" : "expense"}">${item.isIncome ? "+" : ""}${formatCurrency(item.amount)}</span>
         </button>
@@ -296,17 +764,7 @@ function renderCategoryStats(expenseItems) {
 
   els.chartCanvas.setAttribute("role", "img");
   els.chartCanvas.setAttribute("aria-label", `本月支出共 ${formatCurrency(total)}，最高分類為 ${rows[0].name}`);
-  els.chartCanvas.innerHTML = rows.map((category) => {
-    const amount = totals[category.id];
-    const pct = Math.round((amount / total) * 100);
-    return `
-      <div class="bar-row">
-        <strong>${category.emoji} ${escapeHtml(category.name)}</strong>
-        <span class="bar-track"><span class="bar-fill" style="width:${pct}%;background:${category.color}"></span></span>
-        <span>${pct}%</span>
-      </div>
-    `;
-  }).join("");
+  els.chartCanvas.innerHTML = renderPieChart(rows, totals, total);
 
   els.statsList.innerHTML = rows.map((category) => `
     <div class="stats-item">
@@ -317,6 +775,55 @@ function renderCategoryStats(expenseItems) {
       <strong>${formatCurrency(totals[category.id])}</strong>
     </div>
   `).join("");
+}
+
+function renderPieChart(rows, totals, total) {
+  const radius = 72;
+  const circumference = 2 * Math.PI * radius;
+  let offset = 0;
+  const slices = rows.map((category) => {
+    const amount = totals[category.id];
+    const length = total > 0 ? (amount / total) * circumference : 0;
+    const dash = rows.length === 1 ? circumference : Math.max(0.8, length);
+    const circle = `
+      <circle
+        cx="100"
+        cy="100"
+        r="${radius}"
+        stroke="${category.color}"
+        stroke-dasharray="${dash} ${circumference - dash}"
+        stroke-dashoffset="${-offset}"
+        transform="rotate(-90 100 100)"
+      ></circle>
+    `;
+    offset += length;
+    return circle;
+  }).join("");
+
+  const legend = rows.map((category) => {
+    const amount = totals[category.id];
+    const pct = Math.round((amount / total) * 100);
+    return `
+      <div class="pie-legend-item">
+        <span class="pie-dot" style="background:${category.color}" aria-hidden="true"></span>
+        <strong>${category.emoji} ${escapeHtml(category.name)}</strong>
+        <span>${pct}%</span>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <div class="pie-wrap">
+      <svg class="pie-chart" viewBox="0 0 200 200" aria-hidden="true">
+        <circle cx="100" cy="100" r="${radius}" stroke="var(--border)"></circle>
+        ${slices}
+        <circle class="pie-hole" cx="100" cy="100" r="48"></circle>
+        <text class="pie-caption" x="100" y="88">支出分佈</text>
+        <text class="pie-center" x="100" y="106">${escapeHtml(compactCurrency(total))}</text>
+      </svg>
+      <div class="pie-legend">${legend}</div>
+    </div>
+  `;
 }
 
 function renderDailyStats(expenseItems) {
@@ -339,7 +846,7 @@ function renderDailyStats(expenseItems) {
     return `
       <div class="bar-row">
         <strong>${escapeHtml(day.label)}</strong>
-        <span class="bar-track"><span class="bar-fill" style="width:${pct}%;background:#d93672"></span></span>
+        <span class="bar-track"><span class="bar-fill" style="width:${pct}%;background:var(--primary)"></span></span>
         <span>${formatCurrency(day.amount)}</span>
       </div>
     `;
@@ -362,7 +869,8 @@ function openEntryDialog(id = "") {
   resetTransientEntryState();
   els.dialogTitle.textContent = isEditing ? "編輯記錄" : "快速記帳";
   els.entryId.value = item?.id || "";
-  els.amountInput.value = item ? trimAmount(item.amount) : "";
+  state.activeEntryCurrency = item ? (item.currency || "TWD") : activeTravelCurrency();
+  els.amountInput.value = item ? trimAmount(item.originalAmount || item.amount) : "";
   els.noteInput.value = item?.note || "";
   els.dateInput.value = toLocalInputValue(item ? new Date(item.date) : new Date());
   setEntryType(item?.isIncome ? "income" : "expense");
@@ -388,28 +896,40 @@ function resetTransientEntryState() {
   state.scanMessage = "";
   state.isScanning = false;
   state.shouldParseOnStop = false;
+  state.activeEntryCurrency = null;
   els.amountError.hidden = true;
   els.receiptInput.value = "";
 }
 
 function saveEntry(event) {
   event.preventDefault();
-  const amount = Number(els.amountInput.value.replace(/,/g, ""));
-  if (!Number.isFinite(amount) || amount <= 0) {
+  const enteredAmount = Number(els.amountInput.value.replace(/,/g, ""));
+  if (!Number.isFinite(enteredAmount) || enteredAmount <= 0) {
     els.amountError.hidden = false;
     renderAmountDisplay();
     return;
   }
 
   const id = els.entryId.value || makeId();
+  const currency = state.activeEntryCurrency || activeTravelCurrency();
+  const rate = twdRateFor(currency);
+  const isForeign = currency !== "TWD";
+  const convertedAmount = isForeign ? roundMoney(enteredAmount * rate) : enteredAmount;
   const next = {
     id,
-    amount,
+    amount: convertedAmount,
     category: els.categoryInput.value,
     note: els.noteInput.value.trim(),
     date: new Date(els.dateInput.value).toISOString(),
     isIncome: entryType() === "income"
   };
+
+  if (isForeign) {
+    next.originalAmount = enteredAmount;
+    next.currency = currency;
+    next.exchangeRate = rate;
+    next.travelSessionId = state.settings.travelSessionId || "";
+  }
 
   const index = state.expenses.findIndex((item) => item.id === id);
   if (index >= 0) {
@@ -499,11 +1019,18 @@ function renderAmountDisplay() {
   const amountText = els.amountInput.value;
   const isIncome = entryType() === "income";
   const hasValue = Number(amountText) > 0;
+  const currency = state.activeEntryCurrency || activeTravelCurrency();
+  const rate = twdRateFor(currency);
+  const currencyInfo = currencyInfoFor(currency);
+  const amount = Number(amountText);
   els.amountDisplay.textContent = amountText ? formatAmountForDisplay(amountText) : "0";
   els.amountSign.textContent = isIncome ? "+" : "−";
+  els.currencySymbol.textContent = currencyInfo.symbol;
   els.amountCard.classList.toggle("income-amount", isIncome);
   els.amountDisplay.style.color = hasValue ? "" : "var(--border)";
   els.saveEntry.disabled = !hasValue;
+  els.twdHint.hidden = !(currency !== "TWD" && hasValue);
+  els.twdHint.textContent = currency !== "TWD" && hasValue ? `約 ${formatCurrency(amount * rate)} · 1 ${currency} ≈ ${formatTwdRate(rate)}` : "";
 }
 
 function handleVoiceTap() {
@@ -841,6 +1368,56 @@ function formatCurrency(value) {
   }).format(value || 0);
 }
 
+function formatTwdRate(value) {
+  const amount = Number(value) || 0;
+  return `NT$${new Intl.NumberFormat("zh-TW", {
+    minimumFractionDigits: amount < 1 ? 3 : 0,
+    maximumFractionDigits: amount < 1 ? 4 : 2
+  }).format(amount)}`;
+}
+
+function compactCurrency(value) {
+  return new Intl.NumberFormat("zh-TW", {
+    style: "currency",
+    currency: "TWD",
+    notation: "compact",
+    maximumFractionDigits: 1
+  }).format(value || 0);
+}
+
+function formatForeignAmount(code, value) {
+  const currency = currencyInfoFor(code);
+  const digits = ["JPY", "KRW", "VND", "IDR"].includes(currency.code) ? 0 : 2;
+  return `${currency.symbol}${new Intl.NumberFormat("zh-TW", {
+    maximumFractionDigits: digits,
+    minimumFractionDigits: 0
+  }).format(value || 0)}`;
+}
+
+function travelAmountCopy(item) {
+  if (!item.currency || !item.originalAmount) return "";
+  return `${formatForeignAmount(item.currency, item.originalAmount)} ≈ ${formatCurrency(item.amount)}`;
+}
+
+function currencyInfoFor(code) {
+  return travelCurrencies.find((currency) => currency.code === code) || travelCurrencies[0];
+}
+
+function uniqueCodes(codes) {
+  return Array.from(new Set(codes.map((code) => currencyInfoFor(code).code)));
+}
+
+function timeShort(date) {
+  return new Intl.DateTimeFormat("zh-TW", {
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
+}
+
+function roundMoney(value) {
+  return Math.round((Number(value) || 0) * 100) / 100;
+}
+
 function formatAmountForDisplay(value) {
   const [integer, decimal] = String(value).split(".");
   const formatted = new Intl.NumberFormat("zh-TW").format(Number(integer || 0));
@@ -901,38 +1478,127 @@ function loadExpenses() {
   }
 }
 
+function loadSettings() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
+    return normalizeSettings(parsed);
+  } catch {
+    return normalizeSettings({});
+  }
+}
+
+function normalizeSettings(value) {
+  return {
+    theme: validThemeId(value.theme),
+    icon: validIconId(value.icon),
+    reminderEnabled: Boolean(value.reminderEnabled),
+    reminderTime: /^\d{2}:\d{2}$/.test(value.reminderTime || "") ? value.reminderTime : "21:00",
+    travelModeEnabled: Boolean(value.travelModeEnabled),
+    travelCurrency: currencyInfoFor(value.travelCurrency || "JPY").code,
+    travelSessionId: String(value.travelSessionId || ""),
+    travelStartedAt: String(value.travelStartedAt || ""),
+    converterBase: currencyInfoFor(value.converterBase || "TWD").code,
+    converterAmount: normalizeAmountText(String(value.converterAmount || "1000"))
+  };
+}
+
+function validThemeId(value) {
+  return themeOptions.some((option) => option.id === value) ? value : "pink";
+}
+
+function validIconId(value) {
+  return iconOptions.some((option) => option.id === value) ? value : "default";
+}
+
+function loadTrips() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(TRIPS_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed.filter((trip) => trip && trip.id) : [];
+  } catch {
+    return [];
+  }
+}
+
+function loadRateCache() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(RATE_CACHE_KEY) || "{}");
+    return {
+      ...Object.fromEntries(Object.entries(fallbackTwdRates).map(([code, rate]) => [code, { rate, updatedAt: "", source: "fallback" }])),
+      ...parsed
+    };
+  } catch {
+    return Object.fromEntries(Object.entries(fallbackTwdRates).map(([code, rate]) => [code, { rate, updatedAt: "", source: "fallback" }]));
+  }
+}
+
 function normalizeExpenseRecord(item) {
   const isIncome = Boolean(item.isIncome);
-  return {
+  const normalized = {
     ...item,
     amount: Number(item.amount),
     category: normalizeCategory(item.category, isIncome ? "income" : "expense"),
     isIncome
   };
+  if (item.currency && item.currency !== "TWD") {
+    normalized.currency = currencyInfoFor(item.currency).code;
+    normalized.originalAmount = Number(item.originalAmount || item.amount);
+    normalized.exchangeRate = Number(item.exchangeRate || fallbackTwdRates[normalized.currency] || 1);
+  }
+  return normalized;
 }
 
 function persist() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state.expenses));
 }
 
-function exportJson() {
-  const payload = {
+function saveSettings() {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings));
+}
+
+function saveTrips() {
+  localStorage.setItem(TRIPS_KEY, JSON.stringify(state.trips));
+}
+
+function saveRateCache() {
+  localStorage.setItem(RATE_CACHE_KEY, JSON.stringify(state.rateCache));
+}
+
+function createBackupPayload() {
+  return {
     app: "i 記帳 PWA",
-    version: 2,
+    version: 4,
     exportedAt: new Date().toISOString(),
-    expenses: state.expenses
+    expenses: state.expenses,
+    settings: state.settings,
+    trips: state.trips
   };
-  download(`i-expense-backup-${dateStamp()}.json`, JSON.stringify(payload, null, 2), "application/json");
+}
+
+function exportJson() {
+  download(`i-expense-backup-${dateStamp()}.json`, JSON.stringify(createBackupPayload(), null, 2), "application/json");
+}
+
+async function copyJson() {
+  try {
+    await navigator.clipboard.writeText(JSON.stringify(createBackupPayload(), null, 2));
+    els.dataCount.textContent = "備份已複製";
+    window.setTimeout(updateDataManagement, 1600);
+  } catch {
+    window.alert("複製失敗，請改用匯出備份。");
+  }
 }
 
 function exportCsv() {
   const rows = [
-    ["date", "type", "category", "amount", "note"],
+    ["date", "type", "category", "amount_twd", "currency", "original_amount", "exchange_rate", "note"],
     ...state.expenses.map((item) => [
       item.date,
       item.isIncome ? "income" : "expense",
       findCategory(item.category).name,
       item.amount,
+      item.currency || "TWD",
+      item.originalAmount || item.amount,
+      item.exchangeRate || 1,
       item.note || ""
     ])
   ];
@@ -952,6 +1618,7 @@ function importJson(event) {
       const normalized = imported
         .filter((item) => item && Number(item.amount) > 0 && item.date)
         .map((item) => normalizeExpenseRecord({
+          ...item,
           id: item.id || makeId(),
           amount: Number(item.amount),
           category: item.category,
@@ -960,6 +1627,16 @@ function importJson(event) {
           isIncome: Boolean(item.isIncome)
         }));
       state.expenses = mergeExpenses(state.expenses, normalized);
+      if (!Array.isArray(parsed) && parsed.settings) {
+        state.settings = normalizeSettings({ ...state.settings, ...parsed.settings });
+        saveSettings();
+        applySettings();
+        populateCurrencySelects();
+      }
+      if (!Array.isArray(parsed) && Array.isArray(parsed.trips)) {
+        state.trips = mergeTrips(state.trips, parsed.trips);
+        saveTrips();
+      }
       persist();
       render();
     } catch {
@@ -977,11 +1654,25 @@ function mergeExpenses(current, imported) {
   return Array.from(byId.values()).sort((a, b) => new Date(b.date) - new Date(a.date));
 }
 
+function mergeTrips(current, imported) {
+  const byId = new Map(current.map((item) => [item.id, item]));
+  imported
+    .filter((item) => item && item.id)
+    .forEach((item) => byId.set(item.id, item));
+  return Array.from(byId.values()).sort((a, b) => new Date(b.endedAt || b.startedAt || 0) - new Date(a.endedAt || a.startedAt || 0));
+}
+
 function clearData() {
   const ok = window.confirm("清除所有記帳資料？");
   if (!ok) return;
   state.expenses = [];
+  state.trips = [];
+  state.settings.travelModeEnabled = false;
+  state.settings.travelSessionId = "";
+  state.settings.travelStartedAt = "";
   persist();
+  saveSettings();
+  saveTrips();
   render();
 }
 

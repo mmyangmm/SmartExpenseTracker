@@ -1237,12 +1237,14 @@ function parseVoiceTranscript() {
   setEntryType(type);
   if (amount) els.amountInput.value = trimAmount(amount);
 
-  const matched = matchCategory(transcript.toLowerCase(), type);
-  els.categoryInput.value = matched?.id || defaultCategoryId(type);
+  const matched = matchCategory(transcript, type);
   const cleanedNote = cleanVoiceNote(transcript);
+  const noteMatched = cleanedNote ? matchCategory(cleanedNote, type) : null;
+  els.categoryInput.value = matched?.id || noteMatched?.id || defaultCategoryId(type);
   if (cleanedNote) els.noteInput.value = cleanedNote;
 
-  state.voiceMessage = `已解析：${transcript}`;
+  const selectedCategory = findCategory(els.categoryInput.value);
+  state.voiceMessage = `已解析：${selectedCategory.name} · ${transcript}`;
   renderCategoryPicker();
   renderAmountDisplay();
   renderVoiceStatus();
@@ -1335,9 +1337,12 @@ function categoryMatchesType(id, type) {
 }
 
 function matchCategory(text, type) {
-  return categories.find((category) =>
-    category.type === type && category.keywords.some((keyword) => text.includes(keyword.toLowerCase()))
-  );
+  const normalized = normalizeSpeechText(text);
+  return categories.find((category) => {
+    if (category.type !== type) return false;
+    const terms = [category.name, category.id, ...category.keywords].filter(Boolean);
+    return terms.some((term) => normalized.includes(normalizeSpeechText(term)));
+  });
 }
 
 function inferEntryType(text) {
@@ -1385,6 +1390,13 @@ function cleanVoiceNote(text) {
     .replace(/(?:NT\$|NTD|TWD|台幣|\$)?\s*\d+(?:[，,]\d{3})*(?:\.\d+)?\s*(?:元|塊|圓)?/gi, "")
     .replace(/(?:支出|收入|記一筆|幫我記|記帳|花了|收到|入帳)/g, "")
     .trim();
+}
+
+function normalizeSpeechText(value) {
+  return String(value)
+    .toLowerCase()
+    .replace(/[，,。．.、：:\s]/g, "")
+    .replace(/臺/g, "台");
 }
 
 function currentMonthItems() {

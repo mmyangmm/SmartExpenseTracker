@@ -1,9 +1,9 @@
-const CACHE_NAME = "i-expense-pwa-v6";
+const CACHE_NAME = "i-expense-pwa-v7";
 const CORE_ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=6",
-  "./app.js?v=6",
+  "./styles.css?v=7",
+  "./app.js?v=7",
   "./manifest.webmanifest",
   "./CHANGELOG.md",
   "./assets/icon-192.png",

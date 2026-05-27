@@ -10,7 +10,7 @@
     <title>i 記帳</title>
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
-    <link rel="stylesheet" href="./styles.css?v=6">
+    <link rel="stylesheet" href="./styles.css?v=7">
   </head>
   <body>
     <div class="app-shell">
@@ -242,6 +242,8 @@
 
         <input type="hidden" id="entryId">
         <input type="hidden" id="categoryInput">
+        <input type="hidden" id="noteInput">
+        <input type="hidden" id="dateInput">
         <input id="amountInput" class="sr-only" inputmode="decimal" autocomplete="off" aria-describedby="amountError" tabindex="-1" aria-hidden="true">
 
         <div class="quick-add-scroll">
@@ -271,15 +273,6 @@
             <div class="category-grid" id="categoryGrid" role="radiogroup" aria-label="分類"></div>
           </section>
 
-          <label class="detail-row">
-            <span class="detail-icon" aria-hidden="true">✎</span>
-            <input id="noteInput" autocomplete="off" placeholder="備註（選填）">
-          </label>
-
-          <label class="detail-row">
-            <span class="detail-icon" aria-hidden="true">□</span>
-            <input id="dateInput" type="datetime-local" required>
-          </label>
         </div>
 
         <div class="status-banner voice-banner" id="voiceBanner" hidden aria-live="polite"></div>
@@ -334,6 +327,6 @@
       </div>
     </template>
 
-    <script src="./app.js?v=6" type="module"></script>
+    <script src="./app.js?v=7" type="module"></script>
   </body>
 </html>

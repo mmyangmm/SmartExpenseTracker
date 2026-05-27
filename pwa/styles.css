@@ -118,12 +118,20 @@ body[data-theme="graphite"] {
 
 html {
   min-height: 100%;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
+  width: 100%;
+  max-width: 100%;
   min-height: 100vh;
   overflow-x: hidden;
+  overscroll-behavior-x: none;
+  touch-action: pan-y pinch-zoom;
   background:
     radial-gradient(circle at 18% 0%, var(--bg-glow) 0 18%, transparent 34%),
     linear-gradient(180deg, var(--bg-start) 0%, var(--bg-mid) 50%, var(--bg-end) 100%);
@@ -163,6 +171,7 @@ select:focus-visible {
   max-width: 760px;
   min-height: 100dvh;
   margin: 0 auto;
+  overflow-x: hidden;
   padding: env(safe-area-inset-top) 16px calc(108px + env(safe-area-inset-bottom));
   position: relative;
 }
@@ -730,8 +739,8 @@ h1 {
   font-size: 17px;
 }
 
-.settings-card-head span,
-.settings-control-row span,
+.settings-card-head > div > span,
+.settings-control-row > span,
 .settings-note {
   display: block;
   margin-top: 4px;
@@ -788,6 +797,7 @@ h1 {
 .switch {
   position: relative;
   flex: 0 0 auto;
+  display: block;
   width: 58px;
   height: 34px;
 }
@@ -801,9 +811,16 @@ h1 {
 .switch span {
   position: absolute;
   inset: 0;
+  display: block;
+  margin: 0;
   border-radius: 999px;
   background: var(--border);
   transition: background 180ms ease;
+}
+
+.switch input:focus-visible + span {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
 }
 
 .switch span::after {

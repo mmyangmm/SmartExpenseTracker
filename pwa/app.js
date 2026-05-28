@@ -687,14 +687,16 @@ async function initFirebaseSync() {
       serverTimestamp: firestoreModule.serverTimestamp,
       setDoc: firestoreModule.setDoc,
       signInWithPopup: authModule.signInWithPopup,
-      signInWithRedirect: authModule.signInWithRedirect,
       signOut: authModule.signOut
     };
     firebaseApp = appModule.initializeApp(config);
     firebaseAuth = authModule.getAuth(firebaseApp);
     firebaseDb = firestoreModule.getFirestore(firebaseApp);
     await authModule.setPersistence(firebaseAuth, authModule.browserLocalPersistence);
-    await authModule.getRedirectResult(firebaseAuth).catch(() => null);
+    await authModule.getRedirectResult(firebaseAuth).catch((error) => {
+      state.cloudSyncMessage = firebaseAuthErrorText(error);
+      return null;
+    });
     authModule.onAuthStateChanged(firebaseAuth, (user) => {
       firebaseUser = user;
       state.cloudSyncMessage = user ? "Google 已登入" : "";
@@ -718,21 +720,13 @@ async function signInWithGoogle() {
   }
   const provider = new firebaseModules.GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
-  state.cloudSyncMessage = "開啟 Google 登入";
+  state.cloudSyncMessage = "開啟 Google 登入視窗";
   renderCloudSyncSettings();
   try {
-    if (shouldUseRedirectSignIn()) {
-      await firebaseModules.signInWithRedirect(firebaseAuth, provider);
-      return;
-    }
     await firebaseModules.signInWithPopup(firebaseAuth, provider);
-  } catch {
-    try {
-      await firebaseModules.signInWithRedirect(firebaseAuth, provider);
-    } catch {
-      state.cloudSyncMessage = "Google 登入失敗";
-      renderCloudSyncSettings();
-    }
+  } catch (error) {
+    state.cloudSyncMessage = firebaseAuthErrorText(error);
+    renderCloudSyncSettings();
   }
 }
 
@@ -792,8 +786,14 @@ function firebaseUserProfile(user) {
   };
 }
 
-function shouldUseRedirectSignIn() {
-  return window.matchMedia("(display-mode: standalone)").matches || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+function firebaseAuthErrorText(error) {
+  const code = error?.code || "";
+  if (code === "auth/unauthorized-domain") return "Firebase 未允許此網域，請加入 mmyangmm.github.io";
+  if (code === "auth/popup-blocked") return "登入視窗被瀏覽器阻擋，請允許彈出視窗後重試";
+  if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") return "Google 登入尚未完成";
+  if (code === "auth/operation-not-supported-in-this-environment") return "此瀏覽器不支援彈出登入，請用 Safari 或 Chrome 開啟";
+  if (code === "auth/network-request-failed") return "網路連線失敗，請稍後再試";
+  return code ? `Google 登入失敗：${code}` : "Google 登入失敗";
 }
 
 function updateDataManagement() {

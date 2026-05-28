@@ -37,3 +37,6 @@
 - 修正 Google 雲端同步無反應：補入先前 `i-expense-pwa` Firebase web config，並讓缺少設定時登入按鈕仍能顯示明確狀態。
 - 修正提醒時間欄位在窄版設定頁偏移，改成固定雙欄 grid 對齊。
 - 將 PWA 資源快取版本升為 v11。
+- 修正 iOS/PWA Google 登入跳回 app 但未完成：改用 Firebase `signInWithPopup()`，不再自動 fallback 到 redirect。
+- Google 登入失敗時顯示 Firebase 錯誤原因，例如未允許網域、彈窗被阻擋或登入視窗被關閉。
+- 將 PWA 資源快取版本升為 v12。

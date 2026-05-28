@@ -655,8 +655,9 @@ async function performCloudSync(reason, manual) {
     state.settings.cloudSyncLastAt = new Date().toISOString();
     state.cloudSyncMessage = `已同步 ${timeShort(new Date())}`;
     saveSettings({ sync: false });
-  } catch {
-    state.cloudSyncMessage = manual ? "同步失敗，請檢查 Firebase" : "自動同步失敗";
+  } catch (error) {
+    state.cloudSyncMessage = firestoreErrorText(error, manual ? "同步失敗" : "自動同步失敗");
+    console.error("[cloud-sync] write failed", error);
   } finally {
     cloudSyncInFlight = false;
     renderCloudSyncSettings();
@@ -703,9 +704,11 @@ async function initFirebaseSync() {
       renderCloudSyncSettings();
       if (user) mergeCloudSnapshotAfterLogin();
     });
-  } catch {
+  } catch (error) {
     firebaseConfigured = false;
-    state.cloudSyncMessage = "Firebase 載入失敗";
+    const code = error?.code || error?.message || "";
+    state.cloudSyncMessage = code ? `Firebase 載入失敗：${code}` : "Firebase 載入失敗";
+    console.error("[cloud-sync] init failed", error);
   } finally {
     firebaseInitializing = false;
     renderCloudSyncSettings();
@@ -756,8 +759,9 @@ async function mergeCloudSnapshotAfterLogin() {
     cloudMergeInProgress = false;
     cloudSyncInFlight = false;
     queueCloudSync("login");
-  } catch {
-    state.cloudSyncMessage = "讀取雲端失敗";
+  } catch (error) {
+    state.cloudSyncMessage = firestoreErrorText(error, "讀取雲端失敗");
+    console.error("[cloud-sync] read failed", error);
     cloudMergeInProgress = false;
     cloudSyncInFlight = false;
   } finally {
@@ -794,6 +798,19 @@ function firebaseAuthErrorText(error) {
   if (code === "auth/operation-not-supported-in-this-environment") return "此瀏覽器不支援彈出登入，請用 Safari 或 Chrome 開啟";
   if (code === "auth/network-request-failed") return "網路連線失敗，請稍後再試";
   return code ? `Google 登入失敗：${code}` : "Google 登入失敗";
+}
+
+function firestoreErrorText(error, fallback) {
+  const code = error?.code || "";
+  if (code === "permission-denied") return "Firestore 規則拒絕存取，請更新 Security Rules";
+  if (code === "unauthenticated") return "Firebase 認證失效，請重新登入";
+  if (code === "failed-precondition") return "Firestore 尚未啟用，請到 Firebase Console 建立資料庫";
+  if (code === "unavailable") return "Firestore 暫時無法連線，請稍後再試";
+  if (code === "not-found") return "找不到 Firestore 資料庫，請確認專案設定";
+  if (code === "resource-exhausted") return "Firestore 配額已用盡";
+  if (code === "deadline-exceeded") return "Firestore 連線逾時，請檢查網路";
+  if (error?.message && /offline/i.test(error.message)) return "目前離線，無法同步";
+  return code ? `${fallback}：${code}` : fallback;
 }
 
 function updateDataManagement() {

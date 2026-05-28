@@ -34,3 +34,6 @@
 - 新增 `firebase-config.js`，並在 GitHub Pages workflow 支援從 `PWA_FIREBASE_CONFIG` 或分離的 Firebase secrets 注入設定。
 - Google 登入後會讀取 `users/{uid}/backups/smart-expense-tracker`，與本機 `localStorage` 資料合併，再自動回寫 Firestore。
 - 將 PWA 資源快取版本升為 v10。
+- 修正 Google 雲端同步無反應：補入先前 `i-expense-pwa` Firebase web config，並讓缺少設定時登入按鈕仍能顯示明確狀態。
+- 修正提醒時間欄位在窄版設定頁偏移，改成固定雙欄 grid 對齊。
+- 將 PWA 資源快取版本升為 v11。

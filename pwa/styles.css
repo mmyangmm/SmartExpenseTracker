@@ -862,6 +862,16 @@ h1 {
   font-weight: 800;
 }
 
+.settings-control-row.reminder-time-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px;
+  align-items: center;
+}
+
+.reminder-time-row label {
+  min-width: 0;
+}
+
 .settings-control-row select,
 .settings-control-row input,
 .settings-field input {
@@ -875,8 +885,8 @@ h1 {
 }
 
 .reminder-time-row input {
-  flex: 0 0 152px;
-  width: 152px;
+  width: 140px;
+  justify-self: end;
   text-align: center;
 }
 
@@ -1687,8 +1697,13 @@ dialog::backdrop {
     width: 100%;
   }
 
+  .settings-control-row.reminder-time-row {
+    grid-template-columns: minmax(0, 1fr) 132px;
+    align-items: center;
+  }
+
   .reminder-time-row input {
-    flex-basis: auto;
+    width: 132px;
   }
 
   .cloud-actions {

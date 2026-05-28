@@ -594,7 +594,7 @@ function renderCloudSyncSettings() {
   }
 
   els.googleSignIn.hidden = signedIn;
-  els.googleSignIn.disabled = !configured || cloudSyncInFlight || firebaseInitializing;
+  els.googleSignIn.disabled = cloudSyncInFlight || firebaseInitializing;
   els.googleSignOut.hidden = !signedIn;
   els.googleSignOut.disabled = cloudSyncInFlight;
   els.syncNow.disabled = !configured || !signedIn || cloudSyncInFlight;
